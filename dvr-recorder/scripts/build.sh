@@ -54,6 +54,11 @@ done
 link $OUT/dvrrec $OUT/dvrrec.o $OUT/tp2850.o $OUT/tsmux.o $OUT/mp3frame.o $SHINE_OBJS -L$VEND -lgk_api -lsecurec -lupvqe -ldnvqe -lvoice_engine
 "$T/bin/arm-linux-strip" $OUT/dvrrec
 
+# imutest: I2C bench test for the IMU prototype (plain libc, no MPP)
+"$CC" $CFLAGS -c src/imutest.c -o $OUT/imutest.o
+link $OUT/imutest $OUT/imutest.o
+"$T/bin/arm-linux-strip" $OUT/imutest
+
 "$T/bin/arm-linux-readelf" -d $OUT/dvrtest | grep -E 'NEEDED|interpreter' || true
 "$T/bin/arm-linux-readelf" -l $OUT/dvrtest | grep -i interpreter || true
-ls -l $OUT/dvrtest $OUT/dvrcap $OUT/dvrrec
+ls -l $OUT/dvrtest $OUT/dvrcap $OUT/dvrrec $OUT/imutest

@@ -10,6 +10,8 @@
 # Marker files (empty files are fine) in the SD card root:
 #   stock         run the stock recorder instead of ours
 #   uartshell     root shell on the UART, /dev/ttyAMA0 at 115200
+#   imutest       IMU prototype: 20 s after boot, run dvr/imutest for 30 s (bus 0, or the
+#                 bus number written in the file) -> probe/16_imu.txt, probe/imu.gcsv
 #   encrypt.orig  the card's original "encrypt" (if any); run last
 cd /home || exit 0
 
@@ -25,6 +27,16 @@ if [ ! -f /home/stock ] && [ -f /home/dvr/dvrrec ] && [ -f /home/dvr/start.sh ];
     touch /dev/appRecord.stock && mount -o bind /boot/appRecord /dev/appRecord.stock
     mount -o bind /home/dvr/start.sh /boot/appRecord
     echo "open DVR active: rc=$? at uptime $(cut -d' ' -f1 /proc/uptime)" > /home/dvr/boot.txt
+fi
+
+if [ -f /home/imutest ] && [ -f /home/dvr/imutest ]; then
+    bus=$(tr -cd 0-9 < /home/imutest); bus=${bus:-0}
+    mkdir -p /home/probe
+    ( sleep 20
+      { echo "### i2cdetect bus $bus, IMU addresses only"; i2cdetect -y -r $bus 0x68 0x6b
+        echo "### imutest"; /home/dvr/imutest -b $bus -t 30 -o /home/probe/imu.gcsv
+        echo "exit $?"; } > /home/probe/16_imu.txt 2>&1
+      sync ) </dev/null >/dev/null 2>&1 &
 fi
 
 [ -f /home/encrypt.orig ] && ./encrypt.orig

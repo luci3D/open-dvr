@@ -6,6 +6,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p sdcard/dvr/lib
-cp build/dvrrec sdcard/dvr/
+cp build/dvrrec build/imutest sdcard/dvr/
 cp vendor/lib/*.so sdcard/dvr/lib/
 ls -lR sdcard
