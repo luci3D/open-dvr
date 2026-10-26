@@ -10,7 +10,7 @@ Machine-readable copy: [bom-prelim.csv](bom-prelim.csv).
 ## Board concept
 
 - **Analog in, parallel tap.** Camera video passes straight through to the VTX; the DVR only listens, so it adds no latency.
-- **Power:** 2–6S battery input.
+- **Power:** 5 V from the flight controller's 5 V pad. Most FCs also power that pad over USB, so files can be copied with the FC on a USB power bank while the battery-powered VTX stays off. No VTX switching in V1.
 - **Storage:** microSD card.
 - **Sensors:** IMU for Gyroflow, plus a microphone.
 - **WiFi for offload**, in one of two versions:
@@ -28,17 +28,42 @@ Machine-readable copy: [bom-prelim.csv](bom-prelim.csv).
 | 4b | IMU, budget alternative | ST LSM6DS3TR-C | (1) | ~1.00 | — | Est., LCSC. Pin-compatible (check before layout); imutest supports it in polling mode |
 | 5 | Crystal 24 MHz (SoC) | 3225 SMD | 1 | 0.30 | 0.30 | LCSC, typical |
 | 6 | Crystal 27 MHz (decoder) | 3225 SMD | 1 | 0.30 | 0.30 | Check the frequency in the TP2850 datasheet |
-| 7 | Wide-input buck, 2–6S to 3.3 V, about 1.5 A | TI LMR51420 / TPS54202 class | 1 | 0.90 | 0.90 | Est. Choose a ≥36 V-rated part for 6S spikes |
-| 8 | Core buck 3.3 → 0.9 V | SY8089 / TLV62569 class | 1 | 0.30 | 0.30 | Est. |
+| 7 | 3.3 V buck from the 5 V input, 2 A | Silergy SY8089A1 / TI TLV62569 class (2.5–5.5 V in) | 1 | 0.15 | 0.15 | Est., LCSC. Low minimum input on purpose: see Power input below |
+| 8 | Core buck 5 V → 0.9 V | SY8089 / TLV62569 class | 1 | 0.30 | 0.30 | Est. |
 | 9 | 1.8 V rail (DRAM, decoder IO) | Small buck or LDO | 1 | 0.25 | 0.25 | Est. Decoder may also need its own core rail (check its datasheet) |
 | 10 | Inductors for the buck converters | 2.2–10 µH, 2520/3015 | 3 | 0.15 | 0.45 | Est. |
 | 11 | microSD socket, push-push | Generic | 1 | 0.30 | 0.30 | LCSC, typical |
-| 12 | Microphone | Analog MEMS or 4 mm electret | 1 | 0.40 | 0.40 | Est. |
-| 13 | Power/video connector | JST-SH 1.0 mm 4–6 pin, plus solder pads | 1 | 0.40 | 0.40 | Est. |
+| 12 | Microphone, analog MEMS, high overload point, IP57, bottom port | Infineon IM73A135V01 | 1 | 2.27 | 2.27 | Digi-Key qty 1 (RS UK about £1.40 at 20). See Microphone below |
+| 12b | 2.8 V LDO for the mic (supply max 3 V), unless the SoC's mic bias can feed it | 150 mA SOT-23-5 LDO | 1 | 0.10 | 0.10 | Est., LCSC |
+| 13 | FC harness connector (5 V, GND, video in, video out) | JST-SH 1.0 mm 4–6 pin, plus solder pads | 1 | 0.40 | 0.40 | Est. |
 | 14 | Button + status LED | Tactile 3×4 mm + 0603 LED | 1 | 0.20 | 0.20 | Est. |
-| 15 | ESD/TVS protection (power input, video lines) | SMBJ/ESD diodes | 2 | 0.20 | 0.40 | Est. |
+| 15 | ESD/TVS protection (5 V input, video lines) | 5 V TVS + ESD diodes | 2 | 0.20 | 0.40 | Est. |
 | 16 | Passives (about 100 resistors and capacitors) | 0402/0603 | ~100 | — | 1.00 | Est. Buying for 2–5 boards means minimum-quantity strips, so the real spend is a few dollars more |
-| | **Common subtotal** | | | | **≈ 14.80** | |
+| | **Common subtotal** | | | | **≈ 16.05** | |
+
+## Power input
+
+- **Input:** one 5 V input from the FC's 5 V pad. The 2–6S wide-input regulator is gone (saves about $0.75 and board area).
+- **Why a low-input 3.3 V buck (2.5–5.5 V):**
+  - When the FC runs from USB, its 5 V pad usually comes through a diode, so it can sit around 4.5–4.7 V.
+  - A 4.5 V-minimum regulator (SY8113B, TPS563201) would be at its limit there; a 2.5 V-minimum part has room to spare.
+  - The cost: these parts are rated to about 6 V, so the input gets a 5 V TVS and a bulk capacitor.
+- **Load:** about 300 mA at 5 V average while recording or transferring, peaks around 500–600 mA during WiFi transmit. Fine for an FC 5 V regulator and for most USB ports.
+- **Check on each FC:** that the 5 V pad is powered when on USB. A few FCs only power it from the battery.
+
+## Microphone
+
+- **Requirement:** prop noise next to the motors is very loud. On the current board the mic input clipped up to 38 % of the time in flight with the codec boost on. So the mic must not overload before the SoC's input does.
+- **Pick: Infineon IM73A135 (analog MEMS):**
+  - analog output, which matches the SoC's built-in mic input;
+  - SNR 73 dB;
+  - 135 dB SPL overload point (from the part name; confirm in the datasheet);
+  - IP57 dust/water resistance, 4×3 mm;
+  - supply 1.52–3 V, so it needs the 2.8 V LDO (or the SoC's mic-bias output, if it can supply about 200 µA).
+- **Port:** bottom port, so the PCB needs a hole under it. Cover the hole with a small acoustic mesh/foam to cut wind and prop-wash noise.
+- **Not chosen:** TDK ICS-40300 (130 dB SPL), which distributors list as last-time-buy or discontinued. Digital (PDM) mics like the IM69D130, because the SoC's input is analog.
+- **Budget fallback:** a 4–6 mm electret capsule (about $0.10) plus a bias resistor, like most cheap DVRs use. Lower overload point, so gain must stay low.
+- **Availability:** Digi-Key showed a 30-week lead time for the IM73A135 while RS had stock. Buy the prototype quantity early.
 
 ## Version A: RTL8188FTV on the board (USB, 2.4 GHz)
 
@@ -50,7 +75,7 @@ Machine-readable copy: [bom-prelim.csv](bom-prelim.csv).
 | A4 | U.FL (IPEX) antenna connector | Generic | 1 | 0.20 | 0.20 | Est. |
 | A5 | 2.4 GHz antenna, U.FL lead | FPC or dipole | 1 | 1.00 | 1.00 | Est., AliExpress |
 | | **Version A subtotal** | | | | **≈ 2.80** | |
-| | **Version A board total (components)** | | | | **≈ 17.60** | |
+| | **Version A board total (components)** | | | | **≈ 18.85** | |
 
 ## Version B: AIC8800D80 module (SDIO, 2.4 + 5 GHz WiFi 6, Bluetooth 5.4)
 
@@ -60,7 +85,7 @@ Machine-readable copy: [bom-prelim.csv](bom-prelim.csv).
 | B2 | U.FL connector (if the module only has an antenna pad) | Generic | 1 | 0.20 | 0.20 | Est. |
 | B3 | Dual-band 2.4/5 GHz antenna, U.FL lead | FPC | 1 | 1.50 | 1.50 | Est., AliExpress |
 | | **Version B subtotal** | | | | **≈ 5.10** | |
-| | **Version B board total (components)** | | | | **≈ 19.95** | |
+| | **Version B board total (components)** | | | | **≈ 21.20** | |
 
 ## PCB and assembly for a 5-board run (estimates)
 
@@ -73,7 +98,7 @@ Machine-readable copy: [bom-prelim.csv](bom-prelim.csv).
 | Shipping and import | 15–35 | |
 | **Run total excluding components** | **≈ 65–150** | So about **$13–30 per board** for 5 boards |
 
-Rough cost per assembled board for 5 units: **Version A ≈ $35–50, Version B ≈ $38–52.** That's the components above with real minimum-order quantities, plus the fees. Fees dominate at this quantity; at 100+ boards the component totals above become the main cost.
+Rough cost per assembled board for 5 units: **Version A ≈ $36–51, Version B ≈ $39–53.** That's the components above with real minimum-order quantities, plus the fees. Fees dominate at this quantity; at 100+ boards the component totals above become the main cost.
 
 ## PCB layers
 
