@@ -1,0 +1,96 @@
+#!/bin/sh
+# Probe hook for the GK7202V300 / TP2850 DVR board, round 3: raw frame grab.
+# The stock /boot/app/run.sh does "mount /dev/mmcblk0p1 /home; cd /home; ./encrypt"
+# as root on every boot, right before ./appRecord starts, so this file runs there.
+#
+# Nothing is probed while appRecord is recording. Timeline:
+#   boot     appRecord starts recording as usual
+#   ~60 s    the video buffer pool location is read from /proc/umap/vb (a passive
+#            read), appRecord is stopped (same effect on the video file as cutting
+#            power), then the whole pool (~19 MB of raw TP2850 frames) is copied
+#            to probe/vb.bin. Keep the camera moving until DONE.txt appears.
+# Power-cycle the board afterwards to record normally again.
+#
+# Marker files (empty files are fine) in the SD card root:
+#   probe_off     skip probing entirely (normal recording)
+#   uartshell     root shell on the UART, /dev/ttyAMA0 at 115200
+#   encrypt.orig  the card's original "encrypt" (if any); run last
+cd /home || exit 0
+P=/home/probe
+
+# ---- UART shell (opt-in) ----------------------------------------------------
+if [ -f /home/uartshell ] && [ -e /dev/ttyAMA0 ]; then
+    stty -F /dev/ttyAMA0 115200 2>/dev/null
+    ( while true; do
+          setsid sh -c 'exec sh </dev/ttyAMA0 >/dev/ttyAMA0 2>&1'
+          sleep 1
+      done ) </dev/null >/dev/null 2>&1 &
+fi
+
+if [ ! -f /home/probe_off ]; then
+    mkdir -p $P
+    rm -f $P/*.txt $P/vb.bin
+
+    # busybox 1.26 timeout (round 1 showed it takes "-t SECS")
+    if timeout -t 1 true >/dev/null 2>&1; then TO="timeout -t 90"
+    elif timeout 1 true >/dev/null 2>&1; then TO="timeout 90"
+    else TO=""; fi
+
+    (
+        sleep 60
+        L=$P/05_framegrab.txt
+        PID=$(pidof appRecord)
+        {
+            echo "uptime: $(cat /proc/uptime)   appRecord pid: $PID"
+            echo "### /proc/umap/vb"; cat /proc/umap/vb
+            echo "### /proc/umap/vi (pipe status)"; grep -A2 'VI PIPE STATUS' /proc/umap/vi
+            echo "### /proc/umap/vpss (group pic info)"; grep -A2 'VPSS GRP PIC INFO' /proc/umap/vpss
+        } > $L 2>&1
+        # first common pool: "PoolId PhysAddr VirtAddr IsComm Owner BlkSz BlkCnt ..."
+        set -- $(awk '/PhysAddr/ { getline; print $2, $6, $7; exit }' /proc/umap/vb)
+        ADDR=$1; BLK=$2; CNT=$3
+
+        if [ -n "$PID" ]; then
+            kill $PID; sleep 2; kill -9 $PID 2>/dev/null; sleep 1
+        fi
+        sync
+
+        if [ -n "$ADDR" ] && [ -n "$BLK" ] && [ -n "$CNT" ]; then
+            LEN=$((BLK * CNT))
+            echo "pool addr=$ADDR blk=$BLK cnt=$CNT len=$LEN" >> $L
+            # regtools is a multi-call binary picked by argv[0]; /dev is devtmpfs (RAM),
+            # so the missing "gkmdb" (memory dump to file) link can live there.
+            ln -sf /bin/regtools /dev/gkmdb 2>> $L
+            echo "### gkmdb $ADDR $LEN $P/vb.bin" >> $L
+            $TO /dev/gkmdb $ADDR $LEN $P/vb.bin >> $L 2>&1
+            echo "rc=$?" >> $L
+            sync
+            # fallback: "gkvd" video dump of the first 6 buffers, read as 960-wide
+            # semi-planar frames (Y plane, then chroma at Y + 960*H)
+            if [ ! -s $P/vb.bin ]; then
+                H=$(( BLK / 1920 ))
+                ln -sf /bin/regtools /dev/gkvd 2>> $L
+                i=0
+                while [ $i -lt 6 ] && [ $i -lt $CNT ]; do
+                    Y=$(( ADDR + i * BLK )); C=$(( Y + 960 * H ))
+                    echo "### gkvd blk$i Y=$Y C=$C 960x$H" >> $L
+                    $TO /dev/gkvd $Y $C 960 960 960 $H $P/blk$i.yuv >> $L 2>&1
+                    echo "rc=$?" >> $L
+                    i=$((i + 1))
+                done
+                sync
+            fi
+            ls -l $P >> $L 2>&1
+        else
+            echo "could not read the VB pool from /proc/umap/vb" >> $L
+        fi
+        ls -l /home/DCIM >> $L 2>&1
+
+        echo "finished: $(cat /proc/uptime)  power-cycle the board to record normally" > $P/DONE.txt
+        sync
+    ) </dev/null >/dev/null 2>&1 &
+fi
+
+# ---- hand over to the card's original hook, if there was one ----------------
+[ -f /home/encrypt.orig ] && ./encrypt.orig
+exit 0

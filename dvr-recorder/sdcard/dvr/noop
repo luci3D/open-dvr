@@ -1,0 +1,3 @@
+#!/bin/sh
+# Stand-in for /boot/appRecord while testing: the stock recorder does not start.
+exit 0

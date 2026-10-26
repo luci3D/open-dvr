@@ -1,0 +1,15 @@
+shine: fixed-point MP3 encoder (upstream https://github.com/savonet/shine, LGPL-2.0),
+copied from OpenIPC Divinus master src/lib/shine (see ../divinus/COMMIT.txt).
+The Divinus copy has no licence file, so COPYING is the upstream licence text from
+https://github.com/savonet/shine (COPYING on master, GNU Library GPL version 2).
+
+Local change: layer3.c computes the slots per frame in integer maths. The original double
+expression gives 431.999... instead of 432 at 32 kHz / 96 kbit/s, so every frame was
+written as 432 bytes with the padding bit set (433 to a decoder) and no player could
+decode the stream.
+
+Local change 2: l3subband.c shifts input samples << 15 instead of << 16 (6 dB of internal
+headroom). With loud input (sine above about -6 dBFS, full-scale noise, clipped audio)
+the fixed-point filter sums overflowed and the frames decoded as silence; this is what
+made in-flight audio (props) silent. Encoded level = input level - 6 dB.
+Tested with tests/shinetest.c + scripts/verify_levels.py.

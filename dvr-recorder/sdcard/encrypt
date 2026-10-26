@@ -1,0 +1,31 @@
+#!/bin/sh
+# Open DVR boot hook for the GK7202V300 / TP2850 DVR board.
+# The stock /boot/app/run.sh does "mount /dev/mmcblk0p1 /home; cd /home; ./encrypt"
+# as root on every boot, right before "cd /boot; ./appRecord &", so this file runs there.
+#
+# It swaps the stock recorder for ours (RAM-only bind mounts; nothing on the board's
+# flash changes): /home/dvr/start.sh appears as /boot/appRecord, and the stock recorder
+# stays reachable as /dev/appRecord.stock for start.sh's fallback.
+#
+# Marker files (empty files are fine) in the SD card root:
+#   stock         run the stock recorder instead of ours
+#   uartshell     root shell on the UART, /dev/ttyAMA0 at 115200
+#   encrypt.orig  the card's original "encrypt" (if any); run last
+cd /home || exit 0
+
+if [ -f /home/uartshell ] && [ -e /dev/ttyAMA0 ]; then
+    stty -F /dev/ttyAMA0 115200 2>/dev/null
+    ( while true; do
+          setsid sh -c 'exec sh </dev/ttyAMA0 >/dev/ttyAMA0 2>&1'
+          sleep 1
+      done ) </dev/null >/dev/null 2>&1 &
+fi
+
+if [ ! -f /home/stock ] && [ -f /home/dvr/dvrrec ] && [ -f /home/dvr/start.sh ]; then
+    touch /dev/appRecord.stock && mount -o bind /boot/appRecord /dev/appRecord.stock
+    mount -o bind /home/dvr/start.sh /boot/appRecord
+    echo "open DVR active: rc=$? at uptime $(cut -d' ' -f1 /proc/uptime)" > /home/dvr/boot.txt
+fi
+
+[ -f /home/encrypt.orig ] && ./encrypt.orig
+exit 0

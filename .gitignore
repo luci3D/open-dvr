@@ -1,0 +1,12 @@
+# Only the DVR project belongs in this repository (this folder also holds other work)
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/dvr-recorder/
+!/dvr-probe/
+
+# Test recordings and build output stay local (clips are hundreds of MB)
+results/
+build/

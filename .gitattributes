@@ -1,0 +1,4 @@
+# LF line endings everywhere: the shell scripts run on the board and in WSL
+* text=auto eol=lf
+*.so binary
+*.png binary
