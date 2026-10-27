@@ -174,13 +174,13 @@ dvrrec takes the button and LED pins from `dvr/gpio.txt`. `sdcard/dvr/gpio.txt` 
 |---|---|
 | Short press (under 2 s) | Stops recording (the clip is closed cleanly), or starts a new clip |
 | Long press (2 s or more) | Nothing. On the stock firmware a 5 s hold formats the card, so dvrrec ignores long presses. |
-| Recording LED: one short flash every 3 s | Recording |
+| Recording LED: one short flash every 5 s | Recording |
 | Recording LED: steady on | Stopped with the button |
-| Recording LED: two flashes every 3 s | Card full or not writable. A press tries again. |
+| Recording LED: two flashes every 5 s | Card full or not writable. A press tries again. |
 | Recording LED: fast blink | Starting up, before the first picture (about 10 blinks after power-on) |
 | Power LED (red) | On while dvrrec runs |
 
-On this board the recording LED is the blue one.
+On this board the recording LED is the blue one. Its 5 s rhythm is deliberately slower than the stock firmware's (one flash about every 4.4 s), so you can tell at a glance which recorder is running.
 
 If the camera is unplugged, the TP2850 keeps sending a black picture, so recording simply continues (black) and the picture comes back on its own when the camera is reconnected. Round 17 test: unplugged for about 65 s, all in the same clip, with no restart and no errors.
 

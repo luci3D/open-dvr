@@ -25,7 +25,7 @@
  *     -k: skip the sensor clock/reset ioctls
  *
  * Button and LEDs: pins from /home/dvr/gpio.txt (see boardio.h; gpioprobe writes it).
- * A short press stops or starts recording; the recording LED flashes once every 3 s
+ * A short press stops or starts recording; the recording LED flashes once every 5 s
  * while recording, stays on when stopped, flashes twice when the card is full and
  * blinks fast while no video arrives (at start-up: an unplugged camera still gives a
  * black picture from the TP2850, which is simply recorded).
@@ -646,10 +646,12 @@ static void toggle_recording(void) {
     printf("  button: recording %s\n", recEnabled ? "on" : "off");
 }
 
-/* Recording LED, in a 3 s cycle like the stock firmware: one short flash = recording,
- * steady = stopped, two flashes = card full; fast blink = no video yet (start-up) */
+/* Recording LED, in a 5 s cycle (the stock firmware flashes about every 4.4 s, so the two
+ * are easy to tell apart): one short flash = recording, steady = stopped, two flashes =
+ * card full; fast blink = no video yet (start-up) */
+#define LED_CYCLE_MS 5000
 static int led_pattern(unsigned long long now, int noSignal) {
-    unsigned int ms = (unsigned int)((now / 1000) % 3000);
+    unsigned int ms = (unsigned int)((now / 1000) % LED_CYCLE_MS);
     if (noSignal) return (now / 250000) % 2;
     if (cardFull) return ms < 200 || (ms >= 400 && ms < 600);
     if (!recEnabled) return 1;
