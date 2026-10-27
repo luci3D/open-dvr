@@ -44,6 +44,7 @@ OHS="-Ithird_party/openhisilicon/include"
 "$CC" $CFLAGS $OHS -Ithird_party/shine -c src/dvrrec.c -o $OUT/dvrrec.o
 "$CC" $CFLAGS -c src/tsmux.c -o $OUT/tsmux.o
 "$CC" $CFLAGS -c src/mp3frame.c -o $OUT/mp3frame.o
+"$CC" $CFLAGS -c src/boardio.c -o $OUT/boardio.o
 # shine MP3 encoder (LGPL, from OpenIPC Divinus; ARM mode so it uses its ARM multiply code)
 SHINE_OBJS=""
 for c in third_party/shine/*.c; do
@@ -51,8 +52,13 @@ for c in third_party/shine/*.c; do
     "$CC" $CFLAGS -marm -w -c "$c" -o "$o"
     SHINE_OBJS="$SHINE_OBJS $o"
 done
-link $OUT/dvrrec $OUT/dvrrec.o $OUT/tp2850.o $OUT/tsmux.o $OUT/mp3frame.o $SHINE_OBJS -L$VEND -lgk_api -lsecurec -lupvqe -ldnvqe -lvoice_engine
+link $OUT/dvrrec $OUT/dvrrec.o $OUT/tp2850.o $OUT/tsmux.o $OUT/mp3frame.o $OUT/boardio.o $SHINE_OBJS -L$VEND -lgk_api -lsecurec -lupvqe -ldnvqe -lvoice_engine
 "$T/bin/arm-linux-strip" $OUT/dvrrec
+
+# gpioprobe: read-only button/LED finder (plain libc, no MPP)
+"$CC" $CFLAGS -c src/gpioprobe.c -o $OUT/gpioprobe.o
+link $OUT/gpioprobe $OUT/gpioprobe.o
+"$T/bin/arm-linux-strip" $OUT/gpioprobe
 
 # imutest: I2C bench test for the IMU prototype (plain libc, no MPP)
 "$CC" $CFLAGS -c src/imutest.c -o $OUT/imutest.o
@@ -61,4 +67,4 @@ link $OUT/imutest $OUT/imutest.o
 
 "$T/bin/arm-linux-readelf" -d $OUT/dvrtest | grep -E 'NEEDED|interpreter' || true
 "$T/bin/arm-linux-readelf" -l $OUT/dvrtest | grep -i interpreter || true
-ls -l $OUT/dvrtest $OUT/dvrcap $OUT/dvrrec $OUT/imutest
+ls -l $OUT/dvrtest $OUT/dvrcap $OUT/dvrrec $OUT/imutest $OUT/gpioprobe

@@ -12,6 +12,10 @@
 #   uartshell     root shell on the UART, /dev/ttyAMA0 at 115200
 #   imutest       IMU prototype: 20 s after boot, run dvr/imutest for 30 s (bus 0, or the
 #                 bus number written in the file) -> probe/16_imu.txt, probe/imu.gcsv
+#   probe_gpio    one boot only: run the stock recorder while dvr/gpioprobe watches the
+#                 pins for 3 min (tap the button meanwhile) -> probe/17_gpio_*.txt and,
+#                 if the button and LED were found, dvr/gpio.txt. Then the marker
+#                 deletes itself, so the next boot is dvrrec again.
 #   encrypt.orig  the card's original "encrypt" (if any); run last
 cd /home || exit 0
 
@@ -23,7 +27,18 @@ if [ -f /home/uartshell ] && [ -e /dev/ttyAMA0 ]; then
       done ) </dev/null >/dev/null 2>&1 &
 fi
 
-if [ ! -f /home/stock ] && [ -f /home/dvr/dvrrec ] && [ -f /home/dvr/start.sh ]; then
+if [ -f /home/probe_gpio ] && [ -f /home/dvr/gpioprobe ]; then
+    # first, before the stock recorder starts: the pins as the boot left them
+    mkdir -p /home/probe
+    /home/dvr/gpioprobe -s > /home/probe/17_gpio_boot.txt 2>&1
+    { echo "### modules"; cat /proc/modules; echo "### interrupts at boot"; cat /proc/interrupts; } \
+        > /home/probe/17_gpio_system.txt 2>&1
+    ( /home/dvr/gpioprobe -t 180 -o /home/probe -w /home/dvr/gpio.txt > /home/probe/17_gpio_run.txt 2>&1
+      { echo "### interrupts after 3 min"; cat /proc/interrupts; } >> /home/probe/17_gpio_system.txt 2>&1
+      rm -f /home/probe_gpio
+      sync ) </dev/null >/dev/null 2>&1 &
+    echo "gpio probe boot (stock recorder) at uptime $(cut -d' ' -f1 /proc/uptime)" > /home/dvr/boot.txt
+elif [ ! -f /home/stock ] && [ -f /home/dvr/dvrrec ] && [ -f /home/dvr/start.sh ]; then
     touch /dev/appRecord.stock && mount -o bind /boot/appRecord /dev/appRecord.stock
     mount -o bind /home/dvr/start.sh /boot/appRecord
     echo "open DVR active: rc=$? at uptime $(cut -d' ' -f1 /proc/uptime)" > /home/dvr/boot.txt

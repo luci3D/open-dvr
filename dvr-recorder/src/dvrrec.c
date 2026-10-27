@@ -15,13 +15,20 @@
  * flagged 4:3 (SAR 4:5).
  *
  * Settings come from the stock /home/config.txt (MaxBitRate in Mbit/s, FileIntervalTime
- * in minutes, VideoFormat PAL/NTSC/AUTO); command-line options override them:
+ * in minutes, VideoFormat PAL/NTSC/AUTO, audio keys, LoopRecording); command-line options
+ * override them:
  *   dvrrec [-s pal|ntsc|auto] [-t seconds] [-c clip_minutes] [-b kbps] [-o file.ts]
  *          [-d dir] [-W out_w] [-H out_h] [-w mipi_width] [-k]
  *     -t: stop after this many seconds (default 0 = run until stopped)
  *     -o: write one file instead of numbered clips
  *     -w: MIPI rx line width setting, 1920 (default, as the stock firmware)
  *     -k: skip the sensor clock/reset ioctls
+ *
+ * Button and LEDs: pins from /home/dvr/gpio.txt (see boardio.h; gpioprobe writes it).
+ * A short press stops or starts recording; the recording LED flashes once every 3 s
+ * while recording, stays on when stopped, flashes twice when the card is full and
+ * blinks fast while no video arrives (at start-up: an unplugged camera still gives a
+ * black picture from the TP2850, which is simply recorded).
  *
  * Built on OpenIPC openhisilicon headers (GPL-3.0, third_party/openhisilicon) and the
  * Goke MPP library from OpenIPC firmware.
@@ -47,6 +54,7 @@
 #include "gk_api_vpss.h"
 #include "mipi.h"
 
+#include "boardio.h"
 #include "compat.h"
 #include "layer3.h"  /* shine MP3 encoder (third_party/shine) */
 #include "mp3frame.h"
@@ -82,6 +90,8 @@ static struct {
                                          * with it on, prop noise clipped the input in flight */
     int micGain;                        /* codec analog mic gain step, -1 = leave as is */
     int audioGainDb;                    /* extra software gain (config "AudioGain", dB) */
+    int loop;                           /* delete the oldest clips when the card fills up
+                                         * (config "LoopRecording") */
     const char *path;                   /* single output file, or NULL for numbered clips */
     const char *dir;                    /* where numbered clips go */
 } cfg;
@@ -99,7 +109,7 @@ static void on_signal(int sig) {
     running = 0;
 }
 
-/* Reads MaxBitRate / FileIntervalTime / VideoFormat from the stock config file. */
+/* Reads our keys from the stock config file (unknown keys such as UserOsd are ignored). */
 static void read_config(const char *path) {
     char line[128], key[64], val[64];
     FILE *f = fopen(path, "r");
@@ -110,6 +120,7 @@ static void read_config(const char *path) {
         else if (!strcmp(key, "MicBoost")) cfg.micBoost = atoi(val) != 0;
         else if (!strcmp(key, "MicGain")) cfg.micGain = atoi(val);
         else if (!strcmp(key, "AudioGain")) cfg.audioGainDb = atoi(val);
+        else if (!strcmp(key, "LoopRecording")) cfg.loop = atoi(val) != 0;
         else if (!strcmp(key, "MaxBitRate") && atoi(val) > 0) cfg.kbps = atoi(val) * 1000;
         else if (!strcmp(key, "FileIntervalTime") && atoi(val) > 0) cfg.clipSec = atoi(val) * 60;
         else if (!strcmp(key, "VideoFormat")) {
@@ -447,9 +458,84 @@ static int open_clip(ts_mux *ts, unsigned int *clipNo) {
     return 0;
 }
 
-static void sync_clip(ts_mux *ts) {
-    fflush(ts->f);
+/* Writes buffered data to the card. Returns nonzero on a write error (card full or gone). */
+static int sync_clip(ts_mux *ts) {
+    int err = fflush(ts->f) != 0 || ferror(ts->f);
     fdatasync(fileno(ts->f));
+    return err;
+}
+
+/* ---- card space and loop recording ---------------------------------------- */
+static volatile int recEnabled = 1;  /* recording; the button toggles it */
+static volatile int cardFull;        /* no room (and nothing old to delete) or not writable */
+static volatile unsigned int curClip;  /* number of the clip being written (0: none) */
+static volatile long long freeMB = -1; /* free space at the last check */
+
+#define MIN_FREE (32LL << 20)  /* stop with this much left, so the card never fills up */
+
+/* Room one whole clip takes: video + MP3 + about 5 % MPEG-TS overhead */
+static long long clip_bytes(void) {
+    unsigned int secs = cfg.clipSec ? cfg.clipSec : 300;
+    return ((long long)cfg.kbps * 125 + 12000) * secs * 21 / 20;
+}
+
+/* Deletes the oldest numbered clip (lowest number) other than clip number keep. Only
+ * files named exactly DVR_<number>.ts are touched. Returns 0 if one was deleted. */
+static int delete_oldest_clip(unsigned int keep) {
+    char name[64] = "", path[320];
+    unsigned int best = 0, n;
+    struct dirent *e;
+    DIR *d = opendir(cfg.dir);
+    if (!d) return -1;
+    while ((e = readdir(d))) {
+        int end = 0;
+        if (sscanf(e->d_name, "DVR_%u.ts%n", &n, &end) == 1 && end && !e->d_name[end] &&
+            n != keep && (!best || n < best) && strlen(e->d_name) < sizeof(name)) {
+            best = n;
+            strcpy(name, e->d_name);
+        }
+    }
+    closedir(d);
+    if (!best) return -1;
+    snprintf(path, sizeof(path), "%s/%s", cfg.dir, name);
+    if (unlink(path)) {
+        printf("  loop recording: cannot delete %s\n", path);
+        return -1;
+    }
+    printf("  loop recording: deleted %s\n", path);
+    return 0;
+}
+
+/* With loop recording, deletes old clips until a whole clip fits; then (either way)
+ * marks the card full when less than MIN_FREE is left, and clears that again once there
+ * is room (also after a passing write error). keep: clip that must stay. */
+static void check_space(unsigned int keep) {
+    long long fr = free_bytes(cfg.dir);
+    int guard = 0;
+    if (fr < 0) return;  /* unknown: carry on */
+    while (cfg.loop && fr < clip_bytes() + MIN_FREE && guard++ < 100 && !delete_oldest_clip(keep))
+        fr = free_bytes(cfg.dir);
+    freeMB = fr >> 20;
+    if (fr < MIN_FREE && !cardFull) {
+        cardFull = 1;
+        printf("  card full (%lld MB left)%s\n", fr >> 20, cfg.loop ? ", no old clips left to delete" : "");
+    } else if (fr >= 3 * MIN_FREE && cardFull) {
+        cardFull = 0;
+        printf("  card writable again (%lld MB free): recording resumes\n", fr >> 20);
+    }
+}
+
+/* Space checks every 5 s, in their own thread: on FAT32 the first free-space query after
+ * power-up reads the whole allocation table (about 5 s on a 256 GB card), and the
+ * encoder drops frames if the writer waits that long. Started before the video, so
+ * that read is mostly done before recording begins. */
+static void *space_thread(void *arg) {
+    (void)arg;
+    while (running) {
+        if (!cfg.path) check_space(curClip);
+        for (int i = 0; i < 50 && running; i++) usleep(100000);
+    }
+    return NULL;
 }
 
 static void *writer_thread(void *arg) {
@@ -457,7 +543,7 @@ static void *writer_thread(void *arg) {
     int fd = GK_API_VENC_GetFd(VENC_CHN_ID);
     unsigned int clipNo = next_clip_number();
     unsigned long long clipStart = 0, lastSync = 0;
-    int idrRequested = 0;
+    int idrRequested = 0, paused = 0;
     ts_mux ts;
     (void)arg;
 
@@ -494,10 +580,30 @@ static void *writer_thread(void *arg) {
         st.idrs += idr;
 
         now = mono_us();
+        /* stopped by the button, or the card is full: close the clip, drop frames */
+        if (!recEnabled || cardFull) {
+            if (ts.f) {
+                sync_clip(&ts);
+                ts_close(&ts);
+                printf("  recording stopped (%s)\n", cardFull ? "card full" : "button");
+            }
+            paused = 1;
+            aq_drain(&ts);  /* no clip open: drops the audio */
+            continue;
+        }
+        if (paused) {  /* recording again: the new clip starts on the next IDR frame */
+            paused = 0;
+            idrRequested = 0;
+            GK_API_VENC_RequestIDR(VENC_CHN_ID, GK_TRUE);
+        }
         /* new clip: on the first IDR, and on the first IDR after the clip time is up */
         if (idr && (!ts.f || (idrRequested && !cfg.path))) {
             if (ts.f) { sync_clip(&ts); ts_close(&ts); }
-            if (open_clip(&ts, &clipNo)) break;
+            if (open_clip(&ts, &clipNo)) {
+                cardFull = 1;  /* cannot create files: card full, read-only or removed */
+                continue;
+            }
+            curClip = clipNo - 1;
             clipStart = lastSync = now;
             idrRequested = 0;
         }
@@ -507,7 +613,10 @@ static void *writer_thread(void *arg) {
         st.bytes += len;
 
         if (now - lastSync >= 1000000ULL) {
-            sync_clip(&ts);
+            if (sync_clip(&ts) && !cardFull) {
+                cardFull = 1;
+                printf("  write error: card full or removed\n");
+            }
             lastSync = now;
         }
         if (cfg.clipSec && !cfg.path && !idrRequested && now - clipStart >= cfg.clipSec * 1000000ULL) {
@@ -516,6 +625,86 @@ static void *writer_thread(void *arg) {
         }
     }
     if (ts.f) { sync_clip(&ts); ts_close(&ts); }
+    return NULL;
+}
+
+/* ---- button and LEDs (pins from /home/dvr/gpio.txt, see boardio.h) -------- */
+#define GPIO_FILE "/home/dvr/gpio.txt"
+#define STOPPED_FILE "/dev/dvr_stopped"  /* in RAM: a button stop survives dvrrec restarts
+                                          * (camera unplugged), not a power cycle */
+static bio_cfg bio;
+
+static void toggle_recording(void) {
+    if (cardFull) {
+        cardFull = 0;  /* try again: the writer checks the space before the next clip */
+        recEnabled = 1;
+    } else {
+        recEnabled = !recEnabled;
+    }
+    if (recEnabled) unlink(STOPPED_FILE);
+    else close(open(STOPPED_FILE, O_CREAT | O_WRONLY, 0644));
+    printf("  button: recording %s\n", recEnabled ? "on" : "off");
+}
+
+/* Recording LED, in a 3 s cycle like the stock firmware: one short flash = recording,
+ * steady = stopped, two flashes = card full; fast blink = no video yet (start-up) */
+static int led_pattern(unsigned long long now, int noSignal) {
+    unsigned int ms = (unsigned int)((now / 1000) % 3000);
+    if (noSignal) return (now / 250000) % 2;
+    if (cardFull) return ms < 200 || (ms >= 400 && ms < 600);
+    if (!recEnabled) return 1;
+    return ms < 200;
+}
+
+static void *ui_thread(void *arg) {
+    unsigned long long now = mono_us(), rawSince = now, pressAt = 0, lastToggle = 0, frameAt = now;
+    unsigned int lastCaptured = 0;
+    int raw, lastRaw = 0, state = 0, armed = 0, warned = 0, led = -1;
+    (void)arg;
+
+    bio_set(&bio.powerLed, 1);
+    while (running) {
+        now = mono_us();
+        if (st.captured != lastCaptured) {
+            lastCaptured = st.captured;
+            frameAt = now;
+        }
+        /* button, debounced (30 ms). It is only used after it has read "released" for 1 s,
+         * so a wrong pin that reads "pressed" all the time can never stop the recording.
+         * Presses of 2 s or more do nothing (the stock firmware formats the card there). */
+        raw = bio_get(&bio.button);
+        if (raw != lastRaw) {
+            lastRaw = raw;
+            rawSince = now;
+        }
+        if (raw != state && now - rawSince >= 30000) {
+            state = raw;
+            if (state) {
+                pressAt = now;
+            } else if (armed && now - pressAt < 2000000ULL && now - lastToggle >= 1000000ULL) {
+                toggle_recording();
+                lastToggle = now;
+            }
+        }
+        if (!armed && bio.button.bank >= 0) {
+            if (!raw && now - rawSince >= 1000000ULL) {
+                armed = 1;
+                printf("  button ready\n");
+            } else if (raw && now - rawSince >= 3000000ULL && !warned) {
+                warned = 1;
+                printf("  button reads pressed: ignored until it reads released\n");
+            }
+        }
+        {
+            int on = led_pattern(now, now - frameAt > 1000000ULL);
+            if (on != led) {
+                bio_set(&bio.recLed, on);
+                led = on;
+            }
+        }
+        usleep(10000);
+    }
+    bio_set(&bio.recLed, 0);
     return NULL;
 }
 
@@ -584,7 +773,9 @@ static int wait_lock(int ms) {
 int main(int argc, char **argv) {
     unsigned int rawW, outHUser = 0;
     int opt;
-    pthread_t capT, wrT, audT;
+    pthread_t capT, wrT, audT, uiT, spaceT;
+    int uiOn = 0, spaceOn;
+    char pins[3][40];
     MPP_CHN_S vpssSrc = { MOD_ID_VPSS, VPSS_GRP_ID, VPSS_CHN_ID };
     MPP_CHN_S vencDst = { MOD_ID_VENC, 0, VENC_CHN_ID };
 
@@ -592,7 +783,7 @@ int main(int argc, char **argv) {
     cfg.std = TP_PAL; cfg.autoStd = 1; cfg.secs = 0; cfg.kbps = 8000; cfg.clipSec = 300;
     cfg.outW = 960; cfg.outH = 0; cfg.mipiW = 1920; cfg.sensorCtl = 1;
     cfg.path = NULL; cfg.dir = "/home/DCIM"; cfg.audio = 1; cfg.audioKbps = 96;
-    cfg.micBoost = 0; cfg.micGain = -1; cfg.audioGainDb = 0;
+    cfg.micBoost = 0; cfg.micGain = -1; cfg.audioGainDb = 0; cfg.loop = 0;
     setvbuf(stdout, NULL, _IONBF, 0);
     read_config("/home/config.txt");
     if (cfg.autoStd) {
@@ -628,10 +819,31 @@ int main(int argc, char **argv) {
     cfg.fieldW = 960;
     set_std(cfg.std, outHUser);
     rawW = cfg.fieldW * 2;  /* UYVY: 2 bytes per pixel, captured as one byte per VI sample */
-    printf("dvrrec: %s%s, %u kbps, clips %u min, %s s, mipi width %u, %s\n",
+    printf("dvrrec: %s%s, %u kbps, clips %u min, %s s, mipi width %u, %s%s\n",
         cfg.autoStd ? "auto, starting with " : "", cfg.std == TP_PAL ? "PAL" : "NTSC",
         cfg.kbps, cfg.clipSec / 60, cfg.secs ? "time-limited" : "run until stopped", cfg.mipiW,
-        cfg.path ? cfg.path : cfg.dir);
+        cfg.path ? cfg.path : cfg.dir, cfg.loop ? ", loop recording" : "");
+    spaceOn = !pthread_create(&spaceT, NULL, space_thread, NULL);
+
+    printf("[button/LEDs]\n");
+    if (!bio_load(GPIO_FILE, &bio)) {
+        printf("  no pins in %s: no button or LEDs\n", GPIO_FILE);
+    } else if (bio_open(&bio)) {
+        printf("  cannot map the GPIO banks: no button or LEDs\n");
+    } else {
+        const bio_pin *pp[3] = { &bio.button, &bio.recLed, &bio.powerLed };
+        for (int i = 0; i < 3; i++) {
+            if (pp[i]->bank < 0) strcpy(pins[i], "none");
+            else snprintf(pins[i], sizeof(pins[i]), "GPIO%d_%d (%d)", pp[i]->bank, pp[i]->bit, pp[i]->level);
+        }
+        printf("  button %s, recording LED %s, power LED %s (pin, active level), %u pin functions set\n",
+            pins[0], pins[1], pins[2], bio.muxCount);
+        if (bio.button.bank >= 0 && !access(STOPPED_FILE, F_OK)) {
+            recEnabled = 0;
+            printf("  stopped by the button before this restart: not recording\n");
+        }
+        uiOn = !pthread_create(&uiT, NULL, ui_thread, NULL);
+    }
 
     printf("[system]\n");
     printf("  SYS_Exit (cleanup) -> %#x, VB_Exit (cleanup) -> %#x\n", GK_API_SYS_Exit(), GK_API_VB_Exit());
@@ -873,10 +1085,11 @@ int main(int argc, char **argv) {
             if (mono_us() >= next) {
                 next += every;
                 printf("  %7.1f s: captured %u sent %u (fail %u) encoded %u, files %u, %llu bytes, convert %llu us/field"
-                       ", audio %u mp3 (peak %lld, %llu us/frame)\n",
+                       ", audio %u mp3 (peak %lld, %llu us/frame), %s, %lld MB free\n",
                     (mono_us() - start) / 1e6, st.captured, st.sent, st.sendFail, st.encoded, st.files,
                     st.bytes, st.captured ? st.convUs / st.captured : 0, st.mp3Frames, st.audioPeak,
-                    st.mp3Frames ? st.audioUs / st.mp3Frames : 0);
+                    st.mp3Frames ? st.audioUs / st.mp3Frames : 0,
+                    cardFull ? "CARD FULL" : recEnabled ? "recording" : "stopped", freeMB);
                 st.audioPeak = 0;
             }
         }
@@ -928,6 +1141,9 @@ out_sys:
 out_vb:
     CALL(GK_API_VB_Exit());
 out:
+    running = 0;
+    if (uiOn) pthread_join(uiT, NULL);
+    if (spaceOn) pthread_join(spaceT, NULL);
     tp_close();
     if (noVideo) {
         printf("dvrrec: no video, exit 3\n");

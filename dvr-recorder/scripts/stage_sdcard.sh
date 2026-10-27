@@ -1,11 +1,12 @@
 #!/bin/bash
 # Assembles the files that go on the DVR's SD card into sdcard/ (run after build.sh).
 #   sdcard/encrypt        boot hook (kept in git, edited by hand)
+#   sdcard/dvr/gpio.txt   button and LED pins of this board (kept in git, from gpioprobe)
 #   sdcard/dvr/<programs> built programs
 #   sdcard/dvr/lib/*.so   Goke MPP libraries from OpenIPC (vendor/lib)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p sdcard/dvr/lib
-cp build/dvrrec build/imutest sdcard/dvr/
+cp build/dvrrec build/imutest build/gpioprobe sdcard/dvr/
 cp vendor/lib/*.so sdcard/dvr/lib/
 ls -lR sdcard

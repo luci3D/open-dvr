@@ -1,0 +1,12 @@
+# Button and LEDs of the cooeye MINIDVR V1.2 board, found by gpioprobe (round 17) with the
+# stock recorder running. Pin, then its level when pressed (button) or lit (LEDs).
+# Other boards: delete this file and run the probe (README, "Button and LEDs").
+Button = GPIO6_4 0
+RecLed = GPIO0_4 1
+# Red LED: the stock recorder makes GPIO0_3 an output together with GPIO0_4 and holds it at 1
+PowerLed = GPIO0_3 1
+# Pin functions the stock recorder changed after boot (written before the pins are used)
+Mux = 0x112c002c 0
+Mux = 0x112c0074 0
+Mux = 0x100c000c 0
+Mux = 0x100c0010 0
