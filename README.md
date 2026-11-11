@@ -10,6 +10,7 @@ An open recorder for the BAYCKRC / COOAI "MINI DVR", a small analog FPV DVR boar
 |---|---|
 | [`dvr-recorder/`](dvr-recorder/) | The recorder (`dvrrec`): specs, wiring, settings, build steps, credits |
 | [`dvr-probe/`](dvr-probe/) | The SD card probe script used to work out the hardware |
+| [`imu-probe/`](imu-probe/) | IMU test for the next, Rockchip-based generation (see [`ROADMAP.md`](ROADMAP.md)) |
 
 Quick start: copy everything in `dvr-recorder/sdcard/` to the root of the board's SD card. The details are in [`dvr-recorder/README.md`](dvr-recorder/README.md).
 
