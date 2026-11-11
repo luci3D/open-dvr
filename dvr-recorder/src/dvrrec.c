@@ -61,6 +61,8 @@
 #include "tp2850.h"
 #include "tsmux.h"
 
+#define DVRREC_VERSION "0.9"  /* printed in the log; scripts/make_release.py checks it */
+
 #define VI_DEV 0
 #define VI_PIPE_ID 0
 #define VI_CHN_ID 0
@@ -821,7 +823,7 @@ int main(int argc, char **argv) {
     cfg.fieldW = 960;
     set_std(cfg.std, outHUser);
     rawW = cfg.fieldW * 2;  /* UYVY: 2 bytes per pixel, captured as one byte per VI sample */
-    printf("dvrrec: %s%s, %u kbps, clips %u min, %s s, mipi width %u, %s%s\n",
+    printf("dvrrec " DVRREC_VERSION ": %s%s, %u kbps, clips %u min, %s s, mipi width %u, %s%s\n",
         cfg.autoStd ? "auto, starting with " : "", cfg.std == TP_PAL ? "PAL" : "NTSC",
         cfg.kbps, cfg.clipSec / 60, cfg.secs ? "time-limited" : "run until stopped", cfg.mipiW,
         cfg.path ? cfg.path : cfg.dir, cfg.loop ? ", loop recording" : "");

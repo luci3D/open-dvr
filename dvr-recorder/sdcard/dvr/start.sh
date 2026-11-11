@@ -10,6 +10,7 @@
 export LD_LIBRARY_PATH=/home/dvr/lib
 LOG=/home/dvr/log.txt
 ARGS=$(cat /home/dvr/args 2>/dev/null)
+mkdir -p /home/DCIM  # a card that never ran the stock recorder has no clip folder yet
 
 fails=0
 while true; do

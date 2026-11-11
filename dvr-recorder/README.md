@@ -190,6 +190,8 @@ Recording always starts at power-on. A stop with the button stays in effect if d
 
 This is only needed on a different board. The chip markings are gone, so the pins are found by watching what the stock firmware does with them. `dvr/gpioprobe` only reads registers; it never changes anything.
 
+The probe is a developer tool, so it isn't in the release zip. Copy this repository's `sdcard/` folder to the card instead: it adds `dvr/gpioprobe` and `dvr/dev.sh`, which the boot hook runs when it is there.
+
 1. Create an empty file named `probe_gpio` in the card root, next to `encrypt`.
 2. Power on with the camera connected. For this one boot the **stock** recorder runs, and the probe watches every pin for 3 minutes.
 3. When the blue LED starts flashing (the stock recorder is recording), wait about 10 s. Then tap the button **4 times, about 5 s apart**. **Short taps only: holding the button for 5 s makes the stock firmware format the card.**
@@ -220,7 +222,10 @@ Mux = 0x100c0010 0x1000
 | `scripts/setup_toolchain.sh` | Installs the Bootlin `armv5-eabi--uclibc` cross-compiler into WSL (`~/toolchains`) |
 | `scripts/build.sh` | Builds into `build/` |
 | `scripts/stage_sdcard.sh` | Copies the built programs and libraries into `sdcard/` |
-| `sdcard/` | Exactly what goes on the SD card root |
+| `scripts/make_release.py` | Packs the release zip for users into `dist/` |
+| `sdcard/` | The SD card root for development: the release files plus the developer tools (`dvr/dev.sh`, `dvr/gpioprobe`, `dvr/imutest`) |
+| `release/` | The user-facing `README.txt`, the default `config.txt` and the licence notice that go into the zip |
+| `tests/` | Host-side tests, run by `scripts/host_test.sh` |
 | `sysroot-board/lib/` | The board's own uClibc 0.9.33 libraries (from the flash dump), linked against so the binaries match the board |
 | `vendor/lib/` | Goke MPP libraries from OpenIPC (`goke-osdrv-gk7205v200`, see `vendor/SOURCE.txt`) |
 | `third_party/divinus/` | Reference HAL headers from OpenIPC Divinus (MIT), commit in `COMMIT.txt` |
@@ -247,9 +252,20 @@ python scripts/check_links.py build/dvrtest
 
 Then copy everything in `sdcard/` to the SD card root.
 
+### Making a release
+
+The version is `DVRREC_VERSION` in `src/dvrrec.c`. After `build.sh` and `stage_sdcard.sh`:
+
+```
+wsl -d Ubuntu-20.04 -- bash scripts/host_test.sh
+python scripts/make_release.py
+```
+
+This writes `dist/open-dvr-<version>.zip`: the boot hook, `dvr/dvrrec`, `dvr/start.sh`, `dvr/gpio.txt`, the five libraries `dvrrec` loads, `README.txt`, `config.txt` and the licences. The script refuses a `dvrrec` that doesn't carry the version or that fails `check_links.py`. The developer tools and test results are left out.
+
 ## Using it
 
-Copy `sdcard/` to the SD card root (`encrypt` and the `dvr/` folder). At power-on the board then records with `dvrrec` instead of the stock recorder.
+Users: extract the release zip into the top folder of the SD card (see its `README.txt`). Developers: copy `sdcard/` to the SD card root (`encrypt` and the `dvr/` folder). Either way, at power-on the board then records with `dvrrec` instead of the stock recorder.
 
 - Settings: `config.txt`, see [Settings](#settings).
 - Button and LEDs: see [Button and LEDs](#button-and-leds).
@@ -270,6 +286,7 @@ Copy `sdcard/` to the SD card root (`encrypt` and the `dvr/` folder). At power-o
 - [ ] Flight check of audio clipping with MicBoost off
 - [x] Round 17: `gpioprobe` found the button and the blue LED on its first run. With them, a tap closed `DVR_0020.ts` cleanly and the next tap started `DVR_0021.ts` (both decode with 0 errors, audio in sync)
 - [x] Round 17, 3 more boots: red LED on, blue LED patterns as described, button stop/start in every boot; first clips start without the FAT32 freeze; camera unplug/replug records black, then the picture again, in the same clip
+- [x] Release 0.9 prepared: `dist/open-dvr-0.9.zip` from `scripts/make_release.py`; the boot hook's developer extras moved to `dvr/dev.sh`; the launcher creates `DCIM` on a fresh card
 - [ ] Loop recording and card-full handling: written, not yet tested on the board
 - [ ] AHD 720p
 - [ ] Video interference (hardware side first)

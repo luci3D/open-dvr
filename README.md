@@ -11,7 +11,7 @@ An open recorder for the BAYCKRC / COOAI "MINI DVR", a small analog FPV DVR boar
 | [`dvr-recorder/`](dvr-recorder/) | The recorder (`dvrrec`): specs, wiring, settings, build steps, credits |
 | [`dvr-probe/`](dvr-probe/) | The SD card probe script used to work out the hardware |
 
-Quick start: copy everything in `dvr-recorder/sdcard/` to the root of the board's SD card. The details are in [`dvr-recorder/README.md`](dvr-recorder/README.md).
+Quick start: download `open-dvr-0.9.zip` from the [Releases](https://github.com/luci3D/open-dvr/releases) page, extract it into the top folder of the board's SD card, and power on. The zip has its own `README.txt` with the button, the LEDs and every `config.txt` setting. The technical details are in [`dvr-recorder/README.md`](dvr-recorder/README.md).
 
 ## Licence
 
