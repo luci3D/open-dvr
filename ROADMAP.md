@@ -2,6 +2,41 @@
 
 Decided: the next generation is built on **Rockchip RV1103 + Techpoint TP2850**. The current Goke GK7202V300 recorder (`dvr-recorder/`) stays as-is for the stock boards people can already buy.
 
+| Stage | What | Status |
+|---|---|---|
+| **1. COOAI board upcycle** | Our own recorder on the stock COOAI / BAYCKRC "MINI DVR" (Goke GK7202V300 + TP2850), side-loaded from the SD card | Done, wrapped up with release 0.9. Bug fixes only from here. |
+| **2. Rockchip RV1103 + TP2850** | Our own hardware and one recorder codebase: everything from [Product line](#product-line) down, phases 0 to 5 | In progress: phase 0 |
+
+## Stage 1 (done): the COOAI board upcycle
+
+The project started by upcycling a DVR board anyone can buy: the COOAI / BAYCKRC "MINI DVR" (printed on the board: `cooeye MINIDVR V1.2`). The goal was to fix what its stock firmware gets wrong, without flashing anything.
+
+What was wrong with the stock firmware:
+- Its 50/60 fps files hold only 25/30 different pictures a second: it encodes one field of each frame twice and drops the other.
+- The microphone track doesn't stay in sync with the video.
+
+What stage 1 delivered (all in [`dvr-recorder/`](dvr-recorder/), packaged for users as the release 0.9 zip):
+- **`dvrrec`**, our own recorder. It runs from the SD card through the stock firmware's boot hook, so nothing on the board is changed, and deleting the files brings the stock recorder back.
+- Real 50 fps PAL and 59.94 fps NTSC (every field recorded), 960x576 / 960x480 shown as 4:3, H.264 (tested up to 20 Mbit/s), PAL/NTSC detected automatically.
+- Power-cut-safe MPEG-TS clips, 5 minutes by default.
+- The board's microphone as an MP3 track, in sync within one frame.
+- Button (tap to stop or start) and both LEDs. Card-full stop and optional loop recording.
+- Settings through the stock `config.txt`.
+
+What it taught us, and what stage 2 reuses:
+- The board's sanded-off chips, identified from software: GK7202V300 SoC, TP2850 decoder, W25Q128 flash ([details](dvr-recorder/README.md#masked-chips)).
+- How the TP2850 behaves: it is register-compatible with the TP9950 (open Rockchip driver), and its field mode gives one field per MIPI frame. This is what makes real 50/60 fps possible, on any SoC.
+- Code that carries over: the MPEG-TS writer, the MP3 path (shine with our two fixes), the PAL/NTSC detection, `config.txt` handling, and the rule that audio and video are stamped from one clock.
+- Tools: the SD card probes ([`dvr-probe/`](dvr-probe/)), `gpioprobe` for finding buttons and LEDs, and host-side tests that run without a board.
+
+Left open on this board (not planned, unless someone picks them up):
+- AHD 720p cameras (use the stock recorder for those).
+- Card-full stop and loop recording are written but were never tested on a full card.
+- A flight check of the audio level with the microphone boost off.
+- WiFi offload and an IMU. The stock kernel has no networking, USB host or SPI, so that would need a different kernel on the board. Those features move to stage 2; the notes are in [`dvr-recorder/docs/`](dvr-recorder/docs/).
+
+Everything below is stage 2.
+
 ## Product line
 
 | Product | Hardware | Who it's for |

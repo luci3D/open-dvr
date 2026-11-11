@@ -14,6 +14,8 @@ An open recorder for the BAYCKRC / COOAI "MINI DVR", a small analog FPV DVR boar
 
 Quick start: download `open-dvr-0.9.zip` from the [Releases](https://github.com/luci3D/open-dvr/releases) page, extract it into the top folder of the board's SD card, and power on. The zip has its own `README.txt` with the button, the LEDs and every `config.txt` setting. The technical details are in [`dvr-recorder/README.md`](dvr-recorder/README.md).
 
+Where the project goes from here: [`ROADMAP.md`](ROADMAP.md). Stage 1, this board, is done; stage 2 is our own hardware on the Rockchip RV1103.
+
 ## Licence
 
 GPL-3.0, see [`LICENSE`](LICENSE). Third-party parts keep their own licences; see [Credits and licences](dvr-recorder/README.md#credits-and-licences).
