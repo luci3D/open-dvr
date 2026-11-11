@@ -140,6 +140,15 @@ int main(void) {
     CHECK(drain(&d, 100, 0) == 1000);
     CHECK(d.overruns == 0 && d.cnt_jumps == 0 && d.unpaired == 0 && d.other_words == 0 && d.fill == 20);
 
+    /* smaller bus reads give the same stream */
+    for (int k = 1; k <= 5; k += 4) {
+        sim_reset(&d);
+        d.chunk = k;
+        CHECK(imu_setup(&d, 416, 2000, 16) == 0 && imu_fifo_start(&d) == 0);
+        CHECK(drain(&d, 100, 0) == 1000);
+        CHECK(d.overruns == 0 && d.cnt_jumps == 0 && d.unpaired == 0 && d.ntags == 4 && d.tags[0] >> 3 == 1 && d.tags[1] >> 3 == 2);
+    }
+
     /* accel word first, with a timestamp word in every slot */
     sim_reset(&d);
     accel_first = extra_words = 1;

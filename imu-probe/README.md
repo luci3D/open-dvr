@@ -57,7 +57,20 @@ If no chip is found, check the bus by hand: `i2cdetect -y 3` should show `6a`.
 | `-x` | Accel full scale in g: 2, 4, 8, 16 | 16 |
 | `-t` | Run time in seconds, 0 = until Ctrl-C | 10 live, 30 logging |
 | `-s` | SPI clock in Hz | 1000000 |
+| `-k` | FIFO words per bus read, 1 to 16 | 16 |
+| `-v` | With `-o`: print every FIFO read (time, words waiting, samples, duration, first tag bytes) | off |
 | `-o` | Log to this `.gcsv` file | live values only |
+
+### If the log fails
+
+Run it again with `-v` and with one FIFO word per read, and compare:
+
+```
+./imutest -d /dev/i2c-3 -t 10 -v -o /root/v16.gcsv
+./imutest -d /dev/i2c-3 -t 10 -v -k 1 -o /root/v1.gcsv
+```
+
+`-v` shows each read's duration. A read that takes seconds points at the bus; if `-k 1` passes where the default fails, the long bus reads are the problem.
 
 ### Reading the summary
 
@@ -152,7 +165,8 @@ This first runs the host test (`tests/imusim.c`: the chip code against a simulat
 ## Status
 
 - [x] Host test passes; the program was also run on a PC against a simulated chip on a slow bus (416 Hz passes at 100 kHz, 833 Hz overflows as expected)
-- [ ] First run on the Luckfox Pico Pro: chip found, live values, axes
-- [ ] 30 s log at 416 Hz with no overruns
+- [ ] Axes checked by turning the board
+- [x] First run: chip found on `/dev/i2c-3` (I2C3, M1 pins), live values correct lying still
+- [ ] 30 s log at 416 Hz with no overruns (first two tries: a FIFO read stalls for about 33 s after 2 s, cause unknown)
 - [ ] SPI, 833 and 1667 Hz
 - [ ] Log synchronizes in Gyroflow

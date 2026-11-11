@@ -5,7 +5,8 @@
  * wiring and the axes. With -o it streams gyro + accel through the chip's FIFO into a
  * Gyroflow .gcsv log and reports whether any samples were lost.
  *
- *   imutest [-d device] [-a addr] [-r rate] [-g dps] [-x g] [-t seconds] [-s hz] [-o file.gcsv]
+ *   imutest [-d device] [-a addr] [-r rate] [-g dps] [-x g] [-t seconds] [-s hz] [-k words] [-v]
+ *           [-o file.gcsv]
  *     -d: /dev/i2c-N or /dev/spidevX.Y (default: search every I2C bus)
  *     -a: I2C address, 0x6a or 0x6b (default: try both)
  *     -r: sample rate in Hz: 104, 208, 416 (default), 833, 1667, 3333, 6667
@@ -13,6 +14,8 @@
  *     -x: accel full scale in g: 2, 4, 8, 16 (default)
  *     -t: run time in seconds (default 10 live, 30 logging; 0 = until Ctrl-C)
  *     -s: SPI clock in Hz (default 1000000)
+ *     -k: FIFO words per bus read, 1..16 (default 16)
+ *     -v: with -o, print every FIFO read (time, words waiting, samples, duration)
  *     -o: log to this file
  *
  * Sample times in the log are on CLOCK_MONOTONIC (the clock V4L2 stamps video frames
@@ -38,6 +41,7 @@
 typedef struct { int fd, addr; } bus_ctx;
 
 static volatile sig_atomic_t stop;
+static int verbose;
 
 static void on_signal(int sig) { (void)sig; stop = 1; }
 
@@ -235,9 +239,17 @@ static int logfifo(imu_dev *d, const char *file, double seconds) {
     end = t0 + (long long)(seconds * 1e6);
     printf("\nLogging to %s%s\n", file, seconds == 0 ? " until Ctrl-C" : "");
 
+    if (verbose) printf("  time ms  waiting  samples  read ms  first tags\n");
     while (!stop && (seconds == 0 || now_us() < end)) {
         long long tq = now_us();
         int n = imu_fifo_read(d, buf, IMU_FIFO_WORDS);
+        long long dur = now_us() - tq;
+        /* the first 100 reads, then only slow or failed ones */
+        if (verbose && (++verbose <= 101 || dur > 50000 || n < 0)) {
+            printf("  %7.1f  %7d  %7d  %7.1f ", (tq - t0) / 1000.0, d->fill, n, dur / 1000.0);
+            for (int i = 0; i < d->ntags; i++) printf(" %02x", d->tags[i]);
+            printf("\n");
+        }
         if (n < 0) {
             if (++errors > 20) break;
             usleep(2000);
@@ -286,7 +298,8 @@ static int logfifo(imu_dev *d, const char *file, double seconds) {
 
 static void usage(void) {
     fprintf(stderr,
-            "imutest [-d device] [-a addr] [-r rate] [-g dps] [-x g] [-t seconds] [-s hz] [-o file.gcsv]\n"
+            "imutest [-d device] [-a addr] [-r rate] [-g dps] [-x g] [-t seconds] [-s hz] [-k words] [-v]\n"
+            "        [-o file.gcsv]\n"
             "  no -o: find the LSM6DSOX and print live values\n"
             "  -o:    log gyro + accel through the FIFO to a Gyroflow .gcsv file\n"
             "  -d /dev/i2c-N or /dev/spidevX.Y (default: search every I2C bus)\n"
@@ -294,18 +307,20 @@ static void usage(void) {
             "  -r rate in Hz: 104 208 416 833 1667 3333 6667 (default 416)\n"
             "  -g gyro deg/s: 125 250 500 1000 2000 (default 2000)\n"
             "  -x accel g: 2 4 8 16 (default 16)\n"
-            "  -t seconds (default 10 live, 30 logging; 0 = until Ctrl-C)\n");
+            "  -t seconds (default 10 live, 30 logging; 0 = until Ctrl-C)\n"
+            "  -k FIFO words per bus read, 1..16 (default 16)\n"
+            "  -v with -o: print every FIFO read\n");
 }
 
 int main(int argc, char **argv) {
     const char *dev = NULL, *out = NULL;
-    int addr = 0, gyro = 2000, accel = 16, opt, rc;
+    int addr = 0, gyro = 2000, accel = 16, chunk = 16, opt, rc;
     double rate = 416, seconds = -1;
     unsigned spi_hz = 1000000;
     imu_dev d;
     bus_ctx c;
 
-    while ((opt = getopt(argc, argv, "d:a:r:g:x:t:s:o:h")) != -1) {
+    while ((opt = getopt(argc, argv, "d:a:r:g:x:t:s:k:vo:h")) != -1) {
         switch (opt) {
         case 'd': dev = optarg; break;
         case 'a': addr = (int)strtol(optarg, NULL, 0); break;
@@ -314,6 +329,8 @@ int main(int argc, char **argv) {
         case 'x': accel = atoi(optarg); break;
         case 't': seconds = atof(optarg); break;
         case 's': spi_hz = (unsigned)strtoul(optarg, NULL, 0); break;
+        case 'k': chunk = atoi(optarg); break;
+        case 'v': verbose = 1; break;
         case 'o': out = optarg; break;
         default: usage(); return 2;
         }
@@ -323,12 +340,14 @@ int main(int argc, char **argv) {
     signal(SIGTERM, on_signal);
 
     memset(&d, 0, sizeof(d));
+    d.chunk = chunk;
     if (find_chip(&d, &c, dev, addr, spi_hz)) return 1;
     if (imu_setup(&d, rate, gyro, accel)) {
         fprintf(stderr, "Setup failed (bus error, or a -g / -x value that is not in the list)\n");
         return 1;
     }
-    printf("Rate %.1f Hz (chip trim %+.2f%%), gyro +-%d deg/s, accel +-%d g\n", d.odr_hz, d.trim_pct, gyro, accel);
+    printf("Rate %.1f Hz (chip trim %+.2f%%), gyro +-%d deg/s, accel +-%d g, %d FIFO words per read\n",
+           d.odr_hz, d.trim_pct, gyro, accel, chunk);
     bus_speed(&d);
     rc = out ? logfifo(&d, out, seconds) : live(&d, seconds);
     imu_stop(&d);

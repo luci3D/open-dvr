@@ -32,6 +32,9 @@ typedef struct {
     imu_sample pend;
     int have_g, have_a, seen_g, last_cnt;
     int fill;                 /* words waiting at the last imu_fifo_read() */
+    int chunk;                /* FIFO words per bus read, 1..16 (0 = 16) */
+    unsigned char tags[4];    /* first tag bytes of the last read, for -v */
+    int ntags;
     unsigned long long overruns, cnt_jumps, unpaired, other_words;
 } imu_dev;
 

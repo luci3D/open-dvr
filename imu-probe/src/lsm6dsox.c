@@ -34,7 +34,7 @@
 #define TAG_GYRO 0x01
 #define TAG_ACCEL 0x02
 #define WORD 7
-#define CHUNK_WORDS 16       /* FIFO words per bus read (the address wraps 0x7E -> 0x78) */
+#define CHUNK_WORDS 16       /* most FIFO words per bus read (the address wraps 0x7E -> 0x78) */
 
 /* ODR code 1 = 12.5 Hz, doubling up to code 10 = 6667 Hz */
 static double odr_of(int code) { return 6667.0 / (1 << (10 - code)); }
@@ -149,17 +149,21 @@ static int fifo_word(imu_dev *d, const unsigned char *w, imu_sample *out) {
 
 int imu_fifo_read(imu_dev *d, imu_sample *out, int max) {
     unsigned char st[2], buf[CHUNK_WORDS * WORD];
-    int words, n = 0;
+    int words, n = 0, chunk = d->chunk > 0 && d->chunk < CHUNK_WORDS ? d->chunk : CHUNK_WORDS;
 
+    d->ntags = 0;
     if (rd(d, FIFO_STATUS1, st, 2)) return -1;
     words = st[0] | (st[1] & 0x03) << 8;
     if (st[1] & FIFO_OVR) d->overruns++;
     d->fill = words;
     if (words > max) words = max;            /* a word completes at most one sample */
     while (words > 0) {
-        int k = words < CHUNK_WORDS ? words : CHUNK_WORDS;
+        int k = words < chunk ? words : chunk;
         if (rd(d, FIFO_DATA_OUT_TAG, buf, k * WORD)) return -1;
-        for (int i = 0; i < k; i++) n += fifo_word(d, buf + i * WORD, out + n);
+        for (int i = 0; i < k; i++) {
+            if (d->ntags < 4) d->tags[d->ntags++] = buf[i * WORD];
+            n += fifo_word(d, buf + i * WORD, out + n);
+        }
         words -= k;
     }
     return n;
