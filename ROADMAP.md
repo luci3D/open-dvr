@@ -39,6 +39,8 @@ Mic ──► audio capture ──► MP3 (shine, reused) ───────�
 ### Phase 0: IMU bring-up (now)
 Hardware: Luckfox Pico Pro + Adafruit LSM6DSOX breakout.
 
+The test program and the wiring are in [`imu-probe/`](imu-probe/): `imutest` covers steps 2 to 6 below.
+
 1. **Wiring (I2C first, simplest):** breakout `VIN`→3.3 V, `GND`→GND, `SCL`/`SDA`→a Luckfox I2C bus. Take the bus and pin numbers from the Luckfox pinout for the exact board model, and enable it with `luckfox-config`. The Adafruit board has pull-ups and runs on 3.3 V.
 2. **Check it's there:** `i2cdetect -y <bus>` should show `0x6A` (Adafruit default; `0x6B` if the address pad is changed). Read register `0x0F` (WHO_AM_I) with `i2cget -y <bus> 0x6a 0x0f`; it should return `0x6C`.
 3. **Read data from user space** (through `/dev/i2c-N`, no kernel driver needed): set gyro and accel ODR (start at 416 Hz, aim for 833-1660 Hz), read the gyro + accel registers, print in deg/s and g. Check the axes by rotating the board by hand.
