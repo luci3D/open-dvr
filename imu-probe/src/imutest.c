@@ -38,7 +38,7 @@
 
 #include "lsm6dsox.h"
 
-typedef struct { int fd, addr; } bus_ctx;
+typedef struct { int fd, addr; char path[32]; } bus_ctx;  /* path: the device found */
 
 static volatile sig_atomic_t stop;
 static int verbose;
@@ -105,6 +105,7 @@ static int open_spi(imu_dev *d, bus_ctx *c, const char *path, unsigned hz) {
         fprintf(stderr, "%s: SPI setup failed: %s\n", path, strerror(errno));
         return -1;
     }
+    snprintf(c->path, sizeof(c->path), "%s", path);
     d->bus.rd = spi_rd;
     d->bus.wr = spi_wr;
     printf("%s (SPI, %u Hz): ", path, hz);
@@ -123,6 +124,7 @@ static int open_i2c(imu_dev *d, bus_ctx *c, const char *path, int addr, int quie
     for (int a = addr ? addr : 0x6A; a <= (addr ? addr : 0x6B); a++) {
         c->addr = a;
         if (imu_id(d) >= 0) {
+            snprintf(c->path, sizeof(c->path), "%s", path);
             printf("%s (I2C) address 0x%02x: ", path, a);
             return 0;
         }
@@ -202,19 +204,50 @@ static int live(imu_dev *d, double seconds) {
 }
 
 /*
- * Times 20 direct reads (14 data bytes plus about 3 bytes of addressing each) and prints
- * the bus speed they work out to. A bus far slower than its setting shows up here.
+ * The clock-frequency the device tree gives an I2C bus, in Hz (0 = unknown). On the
+ * Luckfox this is the number typed into luckfox-config, which takes Hz, not kHz: "100"
+ * or "400" there sets 100 or 400 Hz, and the controller then runs at its floor of about
+ * 1 kHz.
  */
-static void bus_speed(imu_dev *d) {
+static unsigned long i2c_setting_hz(const char *dev) {
+    char path[96];
+    unsigned char b[4];
+    const char *name = strrchr(dev, '/');
+    FILE *f;
+
+    snprintf(path, sizeof(path), "/sys/class/i2c-dev/%s/device/of_node/clock-frequency", name ? name + 1 : dev);
+    f = fopen(path, "rb");
+    if (!f) return 0;
+    if (fread(b, 1, 4, f) != 4) b[0] = b[1] = b[2] = b[3] = 0;
+    fclose(f);
+    return (unsigned long)b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3];
+}
+
+/*
+ * Times 20 direct reads (14 data bytes plus about 3 bytes of addressing each) and prints
+ * the bus speed they work out to, next to the I2C setting. A bus far slower than its
+ * setting, or set far too low, shows up here. Returns the speed in kHz (0 = not measured).
+ */
+static double bus_speed(imu_dev *d, const char *dev) {
     imu_sample s;
+    unsigned long set = strstr(dev, "spidev") ? 0 : i2c_setting_hz(dev);
+    double khz;
     long long t = now_us();
+
     for (int i = 0; i < 20; i++)
-        if (imu_read_now(d, &s, NULL)) return;
+        if (imu_read_now(d, &s, NULL)) return 0;
     t = now_us() - t;
-    if (t <= 0) return;
-    printf("Bus speed     about %.0f kHz (20 reads in %.1f ms)\n", 20 * 17 * 9 * 1000.0 / t, t / 1000.0);
-    if (20 * 17 * 9 * 1000.0 / t < 50)
-        printf("              That is very slow: check the I2C speed in luckfox-config (it should be 100 or 400 kHz).\n");
+    if (t <= 0) return 0;
+    khz = 20 * 17 * 9 * 1000.0 / t;
+    printf("Bus speed     about %.0f kHz (20 reads in %.1f ms)", khz, t / 1000.0);
+    if (set) printf(", I2C set to %lu Hz", set);
+    printf("\n");
+    if (set && set < 10000)
+        printf("              The I2C bus is set to %lu Hz. luckfox-config takes the speed in Hz:\n"
+               "              enter 100000 or 400000 there, not 100 or 400.\n", set);
+    else if (khz < 50)
+        printf("              That is very slow: check the I2C speed in luckfox-config (100000 or 400000 Hz).\n");
+    return khz;
 }
 
 static int logfifo(imu_dev *d, const char *file, double seconds) {
@@ -315,7 +348,7 @@ static void usage(void) {
 int main(int argc, char **argv) {
     const char *dev = NULL, *out = NULL;
     int addr = 0, gyro = 2000, accel = 16, chunk = 16, opt, rc;
-    double rate = 416, seconds = -1;
+    double rate = 416, seconds = -1, khz, need_khz;
     unsigned spi_hz = 1000000;
     imu_dev d;
     bus_ctx c;
@@ -348,7 +381,16 @@ int main(int argc, char **argv) {
     }
     printf("Rate %.1f Hz (chip trim %+.2f%%), gyro +-%d deg/s, accel +-%d g, %d FIFO words per read\n",
            d.odr_hz, d.trim_pct, gyro, accel, chunk);
-    bus_speed(&d);
+    khz = bus_speed(&d, c.path);
+    /* a sample is 14 bytes; with addressing, about 16 bytes of 9 bit times each */
+    need_khz = d.odr_hz * 16 * 9 / 1000;
+    if (out && khz && khz < need_khz) {
+        printf("The bus is too slow for %.0f Hz: it needs about %.0f kHz. Not logging.\n"
+               "Lower -r, raise the I2C clock, or use SPI.\nRESULT: FAIL\n", d.odr_hz, need_khz);
+        imu_stop(&d);
+        close(c.fd);
+        return 1;
+    }
     rc = out ? logfifo(&d, out, seconds) : live(&d, seconds);
     imu_stop(&d);
     close(c.fd);
