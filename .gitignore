@@ -3,9 +3,11 @@
 !/.gitignore
 !/.gitattributes
 !/README.md
+!/ROADMAP.md
 !/LICENSE
 !/dvr-recorder/
 !/dvr-probe/
+!/imu-probe/
 
 # Test recordings and build output stay local (clips are hundreds of MB)
 results/
