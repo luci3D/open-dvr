@@ -62,6 +62,8 @@ If no chip is found, check the bus by hand: `i2cdetect -y 3` should show `6a`.
 ### Reading the summary
 
 ```
+Bus speed     about 93 kHz (20 reads in 32.9 ms)
+...
 Samples       12503 in 30.0 s
 Rate          416.9 Hz measured, 417.3 Hz expected (chip trim +0.15%)
 FIFO peak     14 of 512 words
@@ -71,6 +73,7 @@ Slot jumps    0, unpaired words 0, other words 0
 RESULT: PASS
 ```
 
+- **Bus speed:** measured at the start from 20 direct reads. It comes out a little under the bus setting (about 90 for 100 kHz). Far below it means the bus is misconfigured, and the log will fail.
 - **Rate:** samples counted against the board's clock, next to the rate the chip says it runs at (its nominal rate corrected by its factory trim). They should agree within about 1%.
 - **FIFO peak:** how full the chip's 512-word buffer got. One sample is two words. A peak near 512 means the bus barely keeps up.
 - **Overruns:** the buffer overflowed and samples were lost. This is the only way samples get lost, and it fails the test.

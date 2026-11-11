@@ -197,6 +197,22 @@ static int live(imu_dev *d, double seconds) {
     return 0;
 }
 
+/*
+ * Times 20 direct reads (14 data bytes plus about 3 bytes of addressing each) and prints
+ * the bus speed they work out to. A bus far slower than its setting shows up here.
+ */
+static void bus_speed(imu_dev *d) {
+    imu_sample s;
+    long long t = now_us();
+    for (int i = 0; i < 20; i++)
+        if (imu_read_now(d, &s, NULL)) return;
+    t = now_us() - t;
+    if (t <= 0) return;
+    printf("Bus speed     about %.0f kHz (20 reads in %.1f ms)\n", 20 * 17 * 9 * 1000.0 / t, t / 1000.0);
+    if (20 * 17 * 9 * 1000.0 / t < 50)
+        printf("              That is very slow: check the I2C speed in luckfox-config (it should be 100 or 400 kHz).\n");
+}
+
 static int logfifo(imu_dev *d, const char *file, double seconds) {
     static imu_sample buf[IMU_FIFO_WORDS];
     FILE *f = fopen(file, "w");
@@ -313,6 +329,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     printf("Rate %.1f Hz (chip trim %+.2f%%), gyro +-%d deg/s, accel +-%d g\n", d.odr_hz, d.trim_pct, gyro, accel);
+    bus_speed(&d);
     rc = out ? logfifo(&d, out, seconds) : live(&d, seconds);
     imu_stop(&d);
     close(c.fd);
