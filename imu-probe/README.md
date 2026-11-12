@@ -167,8 +167,9 @@ This first runs the host test (`tests/imusim.c`: the chip code against a simulat
 ## Status
 
 - [x] Host test passes; the program was also run on a PC against a simulated chip on a slow bus (416 Hz passes at 100 kHz, 833 Hz overflows as expected)
-- [ ] Axes checked by turning the board
+- [x] Axes known for one mounting: taped to a RunCam Thumb Pro, our gx = -Thumb rz, gy = -Thumb rx, gz = +Thumb ry
 - [x] First run: chip found on `/dev/i2c-3` (I2C3, M1 pins), live values correct lying still
 - [x] 30 s log at 416 Hz with no overruns: 12526 samples, 417.6 Hz measured, FIFO peak 12, 0 slot jumps (I2C3 at 100 kHz). The earlier failures, with a FIFO read stalling for about 33 s, came from the I2C speed being entered as `400` in `luckfox-config`, which means 400 Hz
 - [ ] SPI, 833 and 1667 Hz
-- [ ] Log synchronizes in Gyroflow
+- [x] Log synchronizes in Gyroflow: 53 s log against the Thumb Pro's own gyro, correlation 0.993, gain within 1%
+- [ ] Timestamps follow the board clock (now 0.07% slow, see Phase 0 in [`../ROADMAP.md`](../ROADMAP.md))
