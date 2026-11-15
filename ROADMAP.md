@@ -50,9 +50,9 @@ All of them run **one recorder codebase**.
 
 ## Requirements
 
-- **The DVR never sits in the live video path.** On the quad, it connects in parallel to the flight controller's video line (FC video out → VTX), as a listen-only, high-impedance tap. The FPV feed goes from the FC to the VTX exactly as it would without the DVR, so the DVR adds **zero latency**, and the pilot keeps their video even if the DVR crashes, reboots or loses power.
-- Because of that, the DVR's video input is **unterminated by default** (the VTX already terminates the line). A solder jumper adds a 75 Ω termination only for bench use with a camera wired straight in.
-- Recording happens downstream of the FC, so the clip includes the OSD. Taking the camera directly (no OSD) is still possible by tapping the camera line instead, with the same parallel wiring.
+- **The DVR never sits in the live video path.** On the quad, it connects in parallel to the video line as a listen-only, high-impedance tap. The FPV feed goes on exactly as it would without the DVR, so the DVR adds **zero latency**, and the pilot keeps their video even if the DVR crashes, reboots or loses power.
+- **Default tap: camera → flight controller.** Most users want a clean recording without OSD elements, so the DVR taps the line between the camera's video out and the FC's video in. Users who want the OSD in the recording can tap the FC → VTX line instead, with the same parallel wiring.
+- Because of that, the DVR's video input is **unterminated by default** (the FC, or the VTX for an OSD tap, already terminates the line). A solder jumper adds a 75 Ω termination only for bench use with a camera wired straight in.
 
 ## Software design
 
@@ -106,7 +106,7 @@ Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
 #### Camera input (standard 3-wire analog FPV camera: V+, GND, Video)
 - **Camera power:** not from the FPC's 3.3 V (that is for the TP2850; cameras draw about 100–300 mA and many need 5 V). Bench: the Luckfox VBUS 5 V pin, if the camera accepts 5 V. On a quad: 5 V pass-through, optionally VBAT, picked with a solder jumper. Filter it (ferrite bead or inductor + 10–47 µF) so regulator ripple doesn't show as rolling lines. Add a polyfuse, and reverse-polarity protection if VBAT can reach the pad.
 - **Video input (CVBS, 1 Vpp into 75 Ω):** low-capacitance ESD TVS (<1 pF) and 75 Ω termination to GND, then an AC-coupling cap (about 0.1–1 µF) into the TP2850 VIN. Take the exact values from the COOAI board, which uses the same decoder.
-- **Termination jumper:** open by default, because on the quad the DVR taps the FC → VTX line in parallel (see [Requirements](#requirements)) and the VTX already terminates it; double termination would halve the signal to about 0.5 Vpp. Close it only on the bench, with the camera wired straight in.
+- **Termination jumper:** open by default, because on the quad the DVR taps the camera → FC line in parallel (see [Requirements](#requirements)) and the FC already terminates it; double termination would halve the signal to about 0.5 Vpp. Close it only on the bench, with the camera wired straight in.
 - **Layout:** short video trace over solid ground, away from the regulator's switch node and the MIPI pairs.
 - **Ground:** camera GND and Luckfox GND must be connected (the most common reason for "no video" on the bench). Return the camera ground at the video input.
 - **Connector:** solder pads for phase 1; footprints for a 3-pin 1.25 mm JST-GH-style header later (check the camera's connector). The OSD wire on 4-wire cameras isn't needed by the recorder.
