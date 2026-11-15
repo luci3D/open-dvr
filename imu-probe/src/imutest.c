@@ -106,6 +106,7 @@ static int open_spi(imu_dev *d, bus_ctx *c, const char *path, unsigned hz) {
         return -1;
     }
     snprintf(c->path, sizeof(c->path), "%s", path);
+    d->spi = 1;
     d->bus.rd = spi_rd;
     d->bus.wr = spi_wr;
     printf("%s (SPI, %u Hz): ", path, hz);
@@ -223,14 +224,19 @@ static unsigned long i2c_setting_hz(const char *dev) {
     return (unsigned long)b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3];
 }
 
+/* bit times per direct read: I2C 14 data bytes + about 3 of addressing, 9 bits each;
+   SPI 14 data bytes + 1 command byte, 8 bits each */
+#define READ_BITS(spi) ((spi) ? 15 * 8 : 17 * 9)
+
 /*
- * Times 20 direct reads (14 data bytes plus about 3 bytes of addressing each) and prints
- * the bus speed they work out to, next to the I2C setting. A bus far slower than its
- * setting, or set far too low, shows up here. Returns the speed in kHz (0 = not measured).
+ * Times 20 direct reads and prints the bus speed they work out to, next to the I2C
+ * setting. A bus far slower than its setting, or set far too low, shows up here. On SPI
+ * the time per transfer, not the clock, sets the result. Returns the speed in kHz
+ * (0 = not measured).
  */
-static double bus_speed(imu_dev *d, const char *dev) {
+static double bus_speed(imu_dev *d, const char *dev, unsigned spi_hz) {
     imu_sample s;
-    unsigned long set = strstr(dev, "spidev") ? 0 : i2c_setting_hz(dev);
+    unsigned long set = d->spi ? 0 : i2c_setting_hz(dev);
     double khz;
     long long t = now_us();
 
@@ -238,9 +244,10 @@ static double bus_speed(imu_dev *d, const char *dev) {
         if (imu_read_now(d, &s, NULL)) return 0;
     t = now_us() - t;
     if (t <= 0) return 0;
-    khz = 20 * 17 * 9 * 1000.0 / t;
+    khz = 20.0 * READ_BITS(d->spi) * 1000 / t;
     printf("Bus speed     about %.0f kHz (20 reads in %.1f ms)", khz, t / 1000.0);
     if (set) printf(", I2C set to %lu Hz", set);
+    if (d->spi) printf(", SPI clock %u Hz", spi_hz);
     printf("\n");
     if (set && set < 10000)
         printf("              The I2C bus is set to %lu Hz. luckfox-config takes the speed in Hz:\n"
@@ -381,12 +388,14 @@ int main(int argc, char **argv) {
     }
     printf("Rate %.1f Hz (chip trim %+.2f%%), gyro +-%d deg/s, accel +-%d g, %d FIFO words per read\n",
            d.odr_hz, d.trim_pct, gyro, accel, chunk);
-    khz = bus_speed(&d, c.path);
-    /* a sample is 14 bytes; with addressing, about 16 bytes of 9 bit times each */
-    need_khz = d.odr_hz * 16 * 9 / 1000;
+    khz = bus_speed(&d, c.path, spi_hz);
+    /* a sample is 14 bytes: on I2C with addressing about 16 bytes of 9 bit times each,
+       on SPI about 15 bytes of 8 */
+    need_khz = d.odr_hz * (d.spi ? 15 * 8 : 16 * 9) / 1000;
     if (out && khz && khz < need_khz) {
         printf("The bus is too slow for %.0f Hz: it needs about %.0f kHz. Not logging.\n"
-               "Lower -r, raise the I2C clock, or use SPI.\nRESULT: FAIL\n", d.odr_hz, need_khz);
+               "%s\nRESULT: FAIL\n", d.odr_hz, need_khz,
+               d.spi ? "Lower -r or raise the SPI clock (-s)." : "Lower -r, raise the I2C clock, or use SPI.");
         imu_stop(&d);
         close(c.fd);
         return 1;

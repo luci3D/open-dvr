@@ -114,6 +114,10 @@ int main(void) {
     CHECK(imu_id(&d) == IMU_ID);
     CHECK(imu_setup(&d, 416, 2000, 16) == 0);
     CHECK(reg[0x10] == 0x64 && reg[0x11] == 0x6C && reg[0x12] == 0x44 && reg[0x18] == 0xE2);
+    CHECK(reg[0x13] == 0x00);          /* I2C stays on */
+    d.spi = 1;                         /* on SPI: the chip's I2C interface is turned off */
+    CHECK(imu_setup(&d, 416, 2000, 16) == 0 && reg[0x13] == 0x04);
+    d.spi = 0;
     CHECK(d.odr_nominal > 416.6 && d.odr_nominal < 416.8);
     CHECK(d.odr_hz > 414.7 && d.odr_hz < 414.9);
     CHECK(d.dps_lsb > 0.0699 && d.dps_lsb < 0.0701 && d.g_lsb > 0.000487 && d.g_lsb < 0.000489);

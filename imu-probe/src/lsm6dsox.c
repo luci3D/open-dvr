@@ -23,6 +23,8 @@
 #define CTRL3_BDU 0x40       /* output registers update only between reads */
 #define CTRL3_IF_INC 0x04    /* register address auto-increment */
 #define CTRL3_SW_RESET 0x01
+#define CTRL4_C 0x13
+#define CTRL4_I2C_DISABLE 0x04  /* SPI only: SPI traffic can't be taken for I2C */
 #define CTRL9_XL 0x18
 #define CTRL9_I3C_OFF 0xE2   /* reset value 0xE0 plus I3C_disable */
 #define OUT_TEMP_L 0x20      /* then gyro X/Y/Z (0x22) and accel X/Y/Z (0x28) */
@@ -82,6 +84,7 @@ int imu_setup(imu_dev *d, double rate, int gyro_dps, int accel_g) {
     }
     if (i == 100) return -1;
     if (wr(d, CTRL3_C, CTRL3_BDU | CTRL3_IF_INC) || wr(d, CTRL9_XL, CTRL9_I3C_OFF)) return -1;
+    if (d->spi && wr(d, CTRL4_C, CTRL4_I2C_DISABLE)) return -1;
 
     /* factory trim of the chip's oscillator, in steps of 0.15% */
     if (rd(d, INTERNAL_FREQ_FINE, &v, 1)) return -1;

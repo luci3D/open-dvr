@@ -100,11 +100,12 @@ Each sample is 14 bytes on the bus.
 
 | Bus | Highest rate that fits |
 |---|---|
-| I2C at 100 kHz (the Luckfox default, as far as we know) | 416 Hz |
-| I2C at 400 kHz (`clock-frequency` in the board's device tree) | 1667 Hz |
-| SPI at 1 MHz or more | 6667 Hz |
+| I2C at 100 kHz | 416 Hz (tested) |
+| I2C at 400 kHz | 1667 Hz, with the bus about 65% busy (not tested) |
+| SPI at 1 MHz (the `-s` default) | 3333 Hz (tested) |
+| SPI at 4 MHz | 6667 Hz, the chip's maximum (tested) |
 
-416 Hz is enough to try Gyroflow. The first test is whether 416 Hz passes on the stock I2C bus; then try `-r 833`, which `imutest` refuses at 100 kHz (too slow) and which should pass at 400 kHz or on SPI.
+416 Hz is enough for Gyroflow, as the Thumb Pro test showed; 833 to 1667 Hz is the target on a quad, where prop vibration would otherwise alias into slow false motion. `imutest -o` refuses a rate the bus is too slow for.
 
 ## The log
 
@@ -129,22 +130,40 @@ t,gx,gy,gz,ax,ay,az
 
 To try it in Gyroflow before the DVR records video: tape the breakout to a phone or action camera, record a clip while `imutest -o` runs, then load the clip and the `.gcsv` in Gyroflow and let it synchronize.
 
-## SPI (later)
+## SPI
 
-For rates above 416 Hz. Six wires; enable SPI0 in `luckfox-config` first.
+For rates above 416 Hz. Six wires.
 
 | Adafruit pad | Luckfox Pico Pro pin |
 |---|---|
 | `VIN` | `3V3(OUT)` |
 | `GND` | `GND` |
-| `SCL` | SPI0 `CLK` |
-| `SDA` | SPI0 `MOSI` |
-| `DO` | SPI0 `MISO` |
-| `CS` | SPI0 `CS0` |
+| `SCL` | `GPIO1_C1` (SPI0 `CLK`) |
+| `SDA` | `GPIO1_C2` (SPI0 `MOSI`) |
+| `DO` | `GPIO1_C3` (SPI0 `MISO`) |
+| `CS` | `GPIO1_C0` (SPI0 `CS0`) |
+
+In `luckfox-config`, turn on SPI0 M0 as spidev (not the display driver that shares its chip select) and set its speed to `10000000`. Like the I2C field, it is in Hz, and it is only a ceiling: `imutest` sets the clock itself with `-s`. SPI0 M0 shares no pins with I2C3 M1, so both can stay on. On SPI, `imutest` turns the chip's I2C interface off so SPI traffic can't be taken for I2C.
 
 ```
 ./imutest -d /dev/spidev0.0 -r 1667 -o /root/test.gcsv
+./imutest -d /dev/spidev0.0 -r 6667 -s 4000000 -o /root/test.gcsv
 ```
+
+Results on the Pico Pro with jumper wires (30 s each, board lying still, all with 0 overruns, 0 slot jumps, 0 unpaired words):
+
+| Rate | SPI clock | Bus speed line | FIFO peak | Measured rate |
+|---|---|---|---|---|
+| 416 Hz | 1 MHz | 761 kHz | 6 | 417.7 Hz |
+| 833 Hz | 1 MHz | 760 kHz | 12 | 835.4 Hz |
+| 1667 Hz | 0.5 MHz | 430 kHz | 32 | 1670.6 Hz |
+| 1667 Hz | 1 MHz | 769 kHz | 24 | 1670.8 Hz |
+| 1667 Hz | 4 MHz | 1639 kHz | 22 | 1670.8 Hz |
+| 3333 Hz | 1 MHz | 744 kHz | 66 | 3341.3 Hz |
+| 6667 Hz | 1 MHz | refused (needs about 801 kHz) | | |
+| 6667 Hz | 4 MHz | 1803 kHz | 100 | 6682.5 Hz |
+
+The gyro and accel averages at 1667 Hz match to the count between 0.5 and 4 MHz. The measured rates run 0.08 to 0.1% above the expected ones: the timestamp drift noted in Phase 0 of [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Build
 
@@ -170,6 +189,6 @@ This first runs the host test (`tests/imusim.c`: the chip code against a simulat
 - [x] Axes known for one mounting: taped to a RunCam Thumb Pro, our gx = -Thumb rz, gy = -Thumb rx, gz = +Thumb ry
 - [x] First run: chip found on `/dev/i2c-3` (I2C3, M1 pins), live values correct lying still
 - [x] 30 s log at 416 Hz with no overruns: 12526 samples, 417.6 Hz measured, FIFO peak 12, 0 slot jumps (I2C3 at 100 kHz). The earlier failures, with a FIFO read stalling for about 33 s, came from the I2C speed being entered as `400` in `luckfox-config`, which means 400 Hz
-- [ ] SPI, 833 and 1667 Hz
+- [x] SPI: 416 to 3333 Hz pass at 1 MHz, 6667 Hz passes at 4 MHz (table under SPI)
 - [x] Log synchronizes in Gyroflow: 53 s log against the Thumb Pro's own gyro, correlation 0.993, gain within 1%
 - [ ] Timestamps follow the board clock (now 0.07% slow, see Phase 0 in [`../ROADMAP.md`](../ROADMAP.md))

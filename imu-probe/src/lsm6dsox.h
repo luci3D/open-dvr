@@ -21,6 +21,7 @@ typedef struct { short g[3], a[3]; } imu_sample;   /* raw counts */
 
 typedef struct {
     imu_bus bus;
+    int spi;                  /* 1 = on SPI: imu_setup() turns the chip's I2C interface off */
     int odr_code;             /* ODR field of CTRL1_XL / CTRL2_G */
     double odr_nominal;       /* Hz, from the datasheet table */
     double odr_hz;            /* Hz, corrected with the chip's factory trim */

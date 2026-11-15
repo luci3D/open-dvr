@@ -51,7 +51,7 @@ The test program and the wiring are in [`imu-probe/`](imu-probe/): `imutest` cov
 
 Done when: a clean, gap-free gyro log at the target rate that Gyroflow accepts.
 
-Status: steps 1 to 4 and 6 pass on I2C at 416 Hz. A 53 s log taped to a RunCam Thumb Pro synced in Gyroflow and matched the camera's own gyro (correlation 0.993, gain within 1% on every axis).
+Status: steps 1 to 6 pass: I2C at 416 Hz, SPI from 416 Hz up to the chip's 6667 Hz maximum (1 MHz clock up to 3333 Hz, 4 MHz for 6667 Hz). A 53 s log taped to a RunCam Thumb Pro synced in Gyroflow and matched the camera's own gyro (correlation 0.993, gain within 1% on every axis).
 
 To fix later: **log timestamps drift 0.07%** against the camera (22 ms after 45 s, growing steadily). `imutest` stamps sample N as start time + N times the period from the chip's trimmed rate (417.3 Hz), but the board clock measures the chip at about 417.6 Hz. Stamp samples from `CLOCK_MONOTONIC` instead: fit the sample count against the time of each FIFO read and follow the chip's real rate. It doesn't matter for short clips, but it adds up to about 0.4 s over 10 minutes, and video frames will be stamped with that same clock.
 
