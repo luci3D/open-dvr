@@ -66,6 +66,7 @@ Mic ──► audio capture ──► MP3 (shine, reused) ───────�
 - **Decoder driver:** Rockchip's open TP9950 kernel driver. `dvr-probe` already found that the TP2850 CVBS tables match it. Field mode (MIPI page reg `0x23 = 0x00`, one field per frame) must be supported to keep real 50/60 fps.
 - **Code to carry over from the Goke recorder:** `tsmux.c` (MPEG-TS writer), `mp3frame.c` + shine (MP3 with our fixes), TP2850 tables and standard auto-detection, `config.txt` handling, power-cut-safe flushing.
 - **One clock for everything:** V4L2 buffer timestamps, audio blocks and IMU samples all use `CLOCK_MONOTONIC`, the same way audio is synced to video today. That's what makes the gyro data usable in Gyroflow.
+- **WiFi offload:** the DVR runs its own access point. A phone opens the DVR's page in the browser and downloads a clip as MP4 (remuxed from `.ts` on the board) plus its `.gcsv`; a PC mounts the clip folder over SSHFS. WiFi is only on after landing. Same design as the stage 1 OpenIPC plan ([`openipc-plan.md`](dvr-recorder/docs/openipc-plan.md)).
 
 ## Phases
 
@@ -76,6 +77,8 @@ Mic ──► audio capture ──► MP3 (shine, reused) ───────�
 | Luckfox Pico Mini B | RV1103, 64 MB RAM, 128 MB SPI NAND, MIPI CSI | Final-target check before the integrated PCB |
 | Luckfox MIPI camera (SC3336) | | Proves the CSI connector, capture and encoder path before the TP2850 board exists |
 | Adafruit LSM6DSOX | IMU | Phase 0 |
+| USB WiFi dongle (RTL8188FU 2.4 GHz, and an AIC8800 USB WiFi 6 dongle) | WiFi | Phase 3, on the Pico Pro's USB port in host mode |
+| Luckfox Pico Ultra W (optional) | RV1106 with on-board WiFi | Phase 3: tests an SDIO WiFi chip, closer to the integrated board |
 
 ### Phase 0: IMU bring-up (now)
 Hardware: Luckfox Pico Pro + Adafruit LSM6DSOX breakout.
@@ -118,16 +121,33 @@ Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
 - IMU logging next to each clip (`DVR_0001.ts` + `DVR_0001.gcsv`).
 - Power-cut tests, long recordings at 20 Mbit/s, card-full behaviour, button and LEDs.
 
-### Phase 3: IMU + mic breakout
+### Phase 3: WiFi offload test
+Hardware: Luckfox Pico Pro + USB WiFi dongle on its USB port (host mode). Optionally the Pico Ultra W, whose on-board WiFi is closer to what the integrated board would use. Clips come from phase 2, or any `.ts` + `.gcsv` copied to the card if phase 2 isn't done yet; this phase doesn't depend on the decoder board.
+
+1. **Driver bring-up:** get the dongle's driver into the Luckfox kernel (built in or as a module). Check with `iw dev` and a scan. Start with the RTL8188FU (cheapest, best known), then the AIC8800 (WiFi 6, 2.4 + 5 GHz).
+2. **Access point:** `hostapd` + a DHCP server. A phone and a PC join it. 5 GHz on channels 36–48, away from the 5.8 GHz video band. A unique WiFi password per board.
+3. **Web page:** clip list with thumbnails, download with HTTP Range (resume, preview), delete, settings. Clips download as **MP4**, remuxed from `.ts` on the board (phones and social apps don't import `.ts`); the `.gcsv` downloads next to it.
+4. **PC access:** SSHFS over dropbear + `sftp-server`, mounted from Windows (WinFsp + SSHFS-Win), macOS and Linux.
+5. **Measure:**
+   - throughput in MB/s at 1 m and 5 m, phone and PC, 2.4 vs 5 GHz;
+   - CPU load and remux speed during a download;
+   - current draw and heat with WiFi on.
+6. **Radio rules:** WiFi only after landing: long-press the button to turn it on, auto-off after inactivity, and never on while recording. This keeps 2.4 GHz WiFi away from a 2.4 GHz control link (ELRS) in flight.
+7. **End-to-end check:** phone downloads a clip + `.gcsv`, stabilises it in the Gyroflow app, shares it.
+8. **Decide** the WiFi chip and interface for the integrated board: an SDIO module (AIC8800D80) or a USB chip (RTL8188FTV), from the throughput, power and cost numbers.
+
+Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DVR's own access point, Gyroflow accepts both, and the speed target is met (aim for 5 MB/s or more: a 3-minute clip at 20 Mbit/s is about 450 MB).
+
+### Phase 4: IMU + mic breakout
 - Small board: LSM6DSOX (or its successor) on SPI + MEMS mic, with a connector or pads that suit the Luckfox and the Radxa.
 - Release Gerbers, BOM and the JLC assembly files for the DIY kit.
 
-### Phase 4: integrated on-quad boards
-- RV1103 + TP2850 + SPI NOR/NAND + microSD + IMU + mic + regulators on one board, starting from the open Luckfox Pico schematic.
-- 4 layers; keep the analog video input away from the switching regulator; plan for vibration damping of the IMU.
+### Phase 5: integrated on-quad boards
+- RV1103 + TP2850 + SPI NOR/NAND + microSD + IMU + mic + WiFi (chip from phase 3) + regulators on one board, starting from the open Luckfox Pico schematic.
+- 4 layers; keep the analog video input away from the switching regulator and the WiFi antenna; plan for vibration damping of the IMU.
 - Full size first (easier), then whoop.
 
-### Phase 5: Radxa Zero 3W
+### Phase 6: Radxa Zero 3W
 - Same recorder on the RK3566 (proves the single codebase).
 - Goggle module: receiver video → TP2850 → record + HDMI out.
 - Field-tools launcher: full-screen tiles (DVR, Betaflight, Blackbox, ELRS, EdgeTX, Files, Settings). Betaflight Configurator built from source and served on `localhost` so Web Serial works offline in Chromium.
@@ -141,8 +161,12 @@ Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
 - [x] Is the camera connector's 3.3 V enough for the TP2850, or does the decoder board need its own regulator? The decoder board takes its own 5 V (shared with the camera) and makes 3.3 V and 1.2 V locally ([decoder-board](decoder-board/README.md#power)).
 - [ ] Camera I2C/reset voltage on the Luckfox connector: 1.8 V or 3.3 V? Sets the decoder's VDD_IO.
 - [ ] Is the TP2850 pin-compatible with the TP9950? Continuity check on the COOAI board ([list](decoder-board/README.md#checks-on-the-cooai-board)).
-- [ ] Which camera(s) for phase 1, and their voltage range? Sets the camera power section.- [ ] Mic: the RV1103's built-in codec (is the mic input broken out on the Luckfox boards?) or a digital I2S/PDM mic on the breakout?
+- [ ] Which camera(s) for phase 1, and their voltage range? Sets the camera power section.
+- [ ] Mic: the RV1103's built-in codec (is the mic input broken out on the Luckfox boards?) or a digital I2S/PDM mic on the breakout?
 - [ ] Storage on the integrated board: SPI NAND vs NOR, and how big?
+- [ ] WiFi on the Luckfox: does the Pico Pro's USB port work in host mode with the stock SDK image, and which dongle drivers does the SDK kernel include? (phase 3)
+- [ ] Does the Gyroflow mobile app load `.gcsv` files? (phase 3)
+- [ ] MP4 remux on the board: on download (streamed) or after each recording (needs card space)? (phase 3)
 - [ ] Goggles: which models have HDMI in? Power and heat budget of the Zero 3W in a goggle bay.
 - [ ] Radxa Zero 3W USB: which port powers the board, and does a hub fit for keyboard + flight controller?
 
