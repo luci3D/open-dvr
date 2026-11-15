@@ -10,6 +10,45 @@ The SD side-load recorder stays as the "nothing flashed" edition for stock board
 - **PC:** mount the DVR's clip folder over **SSHFS** and copy files in the file manager.
 - **No USB connector.** The microSD card is the wired path.
 
+## Boards
+
+- **Board 1:** the flying recorder. Stays on stock flash with the SD side-load. Not used for this plan.
+- **Board 2:** this plan. OpenIPC flash and rollback target. Mark it (paint dot or sticker) so it never ends up on the quad by mistake.
+- **Board 3:** stock flash, for IMU and pad finding.
+
+Each board gets its own flash dump before anything is written: boards from the same seller can still differ (firmware version, U-Boot env, OTP check data), so board 2 is rolled back with **its own** dump, never board 1's.
+
+## Board 2: flashing, step by step
+
+On the Raspberry Pi, with the same clip and flashrom programmer string used for board 1's dumps (below, `$P`; for example `linux_spi:dev=/dev/spidev0.0,spispeed=2000`). Board 2 is not powered from its own input while the clip is on.
+
+1. Read it twice and compare. Keep `board2_stock.bin` next to board 1's dumps, plus one copy off this PC.
+
+   ```
+   flashrom -p $P -r board2_a.bin
+   flashrom -p $P -r board2_b.bin
+   sha256sum board2_a.bin board2_b.bin
+   ```
+
+   The hashes must match. Rename one to `board2_stock.bin`. If it differs from board 1's sha256 (4146…0d8), that's fine, but tell me: it means the firmware differs.
+2. On the PC, build the OpenIPC image from the release files `u-boot-gk7202v300-nor.bin` and `openipc.gk7202v300-nor-lite.tgz` (github.com/OpenIPC/firmware, release `latest`):
+
+   ```
+   python scripts/make_openipc_image.py u-boot-gk7202v300-nor.bin openipc.gk7202v300-nor-lite.tgz -o build/openipc-board2.bin
+   ```
+
+   The script checks that the kernel and rootfs are what they claim to be and fit the map below, and prints the image's sha256.
+3. Write it, then read it back and compare. flashrom verifies after writing; the separate read-back also checks the clip.
+
+   ```
+   flashrom -p $P -w openipc-board2.bin
+   flashrom -p $P -r board2_readback.bin
+   ```
+
+   On the PC: `python scripts/make_openipc_image.py --compare build/openipc-board2.bin board2_readback.bin`
+4. Boot with the UART connected (Phase 0, step 3) and run the Phase 1 checks.
+5. Rollback rehearsal: `flashrom -p $P -w board2_stock.bin`, then the stock recorder must record again.
+
 ## Phase 0: preparation (no flashing)
 
 1. **Verify the backups.** `Desktop\60fpsDVR\Og Firmware dumps\dump1.bin` and `dump2.bin` (16 MB, identical, sha256 4146…0d8). Keep a third copy off this PC.
