@@ -160,10 +160,10 @@ Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DV
 - [ ] Does the Rockchip capture block take the TP2850 field-mode output as-is? (phase 1)
 - [ ] Camera FPC pinouts: Luckfox vs Radxa. One decoder board with two connector options, or one per board?
 - [x] Is the camera connector's 3.3 V enough for the TP2850, or does the decoder board need its own regulator? The decoder board takes its own 5 V (shared with the camera) and makes 3.3 V and 1.2 V locally ([decoder-board](decoder-board/README.md#power)).
-- [ ] Camera I2C/reset voltage on the Luckfox connector: 1.8 V or 3.3 V? Sets the decoder's VDD_IO.
+- [x] Camera I2C/reset voltage on the Luckfox connector: **1.8 V** (Pico Pro/Max schematic), so the decoder's VDD_IO is 1.8 V.
 - [ ] Is the TP2850 pin-compatible with the TP9950? Continuity check on the COOAI board ([list](decoder-board/README.md#checks-on-the-cooai-board)).
 - [ ] Which camera(s) for phase 1, and their voltage range? Sets the camera power section.
-- [ ] Mic on the decoder board: do the Pico Pro and Mini B bring the codec mic pins (`MIC0P/N` or `MIC1P/N`, `MICBIAS`) out to pads? If yes, analog mic (plan A); if not, an I2S mic on I2S0 (plan B). (phase 1)
+- [x] Mic on the decoder board: the Pico Pro/Max brings the codec mic pins out to test pads (P4/P5 = MIC0, P9 = bias), so the analog mic (plan A) works. Still to check on the Mini B.
 - [ ] Storage on the integrated board: SPI NAND vs NOR, and how big?
 - [ ] WiFi on the Luckfox: does the Pico Pro's USB port work in host mode with the stock SDK image, and which dongle drivers does the SDK kernel include? (phase 3)
 - [ ] Does the Gyroflow mobile app load `.gcsv` files? (phase 3)

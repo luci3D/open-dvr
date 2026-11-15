@@ -39,8 +39,8 @@ Pin numbers from the TP9950 datasheet (top view, pin 1 = AVDD33, counter-clockwi
 | 9, 10 | VIN3-4 / VIN2P/N | Analog in | Not connected |
 | 11, 28, 40 | DVDD | Power | `1V2D`: 1.2 V core, 100 nF at each pin + 10 µF bulk |
 | 12, 13 | VS, HS | Out | Not connected (parallel output not used); test pads optional |
-| 14, 27, 35 | VDD_IO | Power | `VIO`: 3.3 V or 1.8 V, chosen by a 0 Ω jumper (see I/O voltage) |
-| 15 | RSTB | In, low active | Host reset line from the FPC, plus 10 kΩ pull-up to `VIO` and 100 nF to GND (power-on reset if the host leaves it floating) |
+| 14, 27, 35 | VDD_IO | Power | `VIO`: 1.8 V from U4 (the Luckfox camera I/O is 1.8 V); 0 Ω option for 3.3 V, not fitted |
+| 15 | RSTB | In, low active | Host reset line from the FPC (pin 16), plus 10 kΩ pull-up to `VIO` and 100 nF to GND (power-on reset if the host leaves it floating) |
 | 16 | SCL | In | Host I2C SCL from the FPC (pull-ups on the Luckfox; footprints for our own, not fitted) |
 | 17 | SDA | Bidir | Host I2C SDA, same as SCL |
 | 18 | IRQ | Out | Test pad (not needed by the driver) |
@@ -74,17 +74,18 @@ So the chip needs about **35 mA at 3.3 V and 145 mA at 1.2 V**, roughly 0.3 W. T
 |---|---|---|
 | 3.3 V (`3V3A`, and `VIO` if 3.3 V) | Low-noise LDO, 5 V → 3.3 V, 150–300 mA, SOT-23-5 | Only about 35 mA, so about 0.06 W lost; quiet supply for the analog front end |
 | 1.2 V (`1V2A`, `1V2D`) | Small buck, 5 V → 1.2 V, 2.5–5.5 V input (SY8089 / TLV62569 class), 2.2 µH | An LDO from 3.3 V would burn about 0.3 W at 145 mA. Ferrite + caps split it into analog and digital 1.2 V |
-| 1.8 V (`VIO`, only if needed) | Tiny LDO, 3.3 V → 1.8 V | Only if the Luckfox I2C and reset lines are 1.8 V (see below). Footprint fitted either way |
+| 1.8 V (`VIO`) | Tiny LDO, 3.3 V → 1.8 V | The Luckfox camera I2C and reset are 1.8 V (see below) |
 | Camera power out | 5 V pass-through, ferrite + 22 µF, polyfuse | See [Camera input in the roadmap](../ROADMAP.md#camera-input-standard-3-wire-analog-fpv-camera-v-gnd-video) |
 
 Input protection on the 5 V pad: 5 V TVS, bulk 10–22 µF, and reverse-polarity protection. The COOAI board has an SMA-package diode marked `BV` next to its connector, most likely for the same job.
 
 ## I/O voltage
 
-The I2C and reset lines must match the Luckfox's camera I/O voltage:
-- **In the Luckfox Pico Ultra W schematic**, the camera I2C pull-ups (4.7 kΩ) sit next to a `VCC_1V8` net, and the SoC's camera pins are on a separate I/O domain (`VCCIO7`). So the camera I2C is probably **1.8 V**. The text extraction lost the exact wiring, so this still needs checking on the Pico Pro / Mini B schematic.
-- If it is 1.8 V, set `VIO` = 1.8 V and the TP9950 talks to the host directly.
-- If it is 3.3 V, set `VIO` = 3.3 V and leave the 1.8 V LDO unfitted.
+**The Luckfox camera I/O is 1.8 V** (Luckfox Pico Pro/Max schematic): the SoC's camera pins are on the `VCCIO7` domain, powered from `VCC_1V8`, and the camera I2C pull-ups (R28, R29, 4.7 kΩ) go to `VCC_1V8`.
+
+So `VIO` = **1.8 V**: U4 (1.8 V LDO) is fitted, and the TP9950's I2C and reset talk to the Luckfox directly, with no level shifter. The 0 Ω option to run `VIO` from 3.3 V stays on the board, not fitted.
+
+Still to read on the datasheet PDF: the power table's limit on the difference between VDD_IO and AVDD, which didn't extract cleanly. The datasheet does list 1.8 V as a supported VDD_IO.
 
 ## Clock
 
@@ -109,17 +110,32 @@ Video GND pad ── 0.1 µF ── VIN1N (pin 8)     (pseudo-differential, to c
 
 ## Host connector (FPC)
 
-The Luckfox camera connector carries everything the board needs except camera power. In the Ultra W schematic, the `CAM` connector is a **0.5 mm 20-pin FPC** with these nets (pin numbers didn't survive the text extraction):
+From the Luckfox Pico Pro/Max schematic, connector `H1` (`CAM`), **0.5 mm, 20 pins**:
 
-`VCC_3V3` (2 pins), many `GND`, `MIPI/LVDS_MCLK0`, `MIPI/LVDS_CLK_P/N`, `MIPI/LVDS_D0_P/N`, `MIPI/LVDS_D1_P/N`, `MIPI_I2C_SCL`, `MIPI_I2C_SDA`, `MIPI/LVDS_RST`.
+| Pin | Luckfox net | Our board |
+|---|---|---|
+| 1 | GND | GND |
+| 2 | `MIPI/LVDS_MCLK0` (SoC `VI_CIF_CLKO_M0` / GPIO3_C4, through 22 Ω) | Optional 0 Ω to XTI, not fitted |
+| 3 | GND | GND |
+| 4 | `MIPI/LVDS_D0_P` | D0P (TP9950 pin 24) |
+| 5 | `MIPI/LVDS_D0_N` | D0N (pin 23) |
+| 6 | GND | GND |
+| 7 | `MIPI/LVDS_CLK_P` | CKP (pin 22) |
+| 8 | `MIPI/LVDS_CLK_N` | CKN (pin 21) |
+| 9 | GND | GND |
+| 10 | `MIPI/LVDS_D1_P` | D1P (pin 26) |
+| 11 | `MIPI/LVDS_D1_N` | D1N (pin 25) |
+| 12 | GND | GND |
+| 13 | `MIPI_I2C_SCL` (4.7 kΩ to 1.8 V on the Luckfox) | SCL (pin 16) |
+| 14 | `MIPI_I2C_SDA` (4.7 kΩ to 1.8 V on the Luckfox) | SDA (pin 17) |
+| 15 | GND | GND |
+| 16 | `MIPI/LVDS_RST` (SoC GPIO3_C5) | RSTB (pin 15) |
+| 17, 18 | GND | GND |
+| 19, 20 | `VCC_3V3` | Not used for power; optional 0 Ω to our 3.3 V rail, not fitted |
 
-To do (phase 1, step 0): get the Pico Pro and Mini B pinout from their schematics, and check:
-- pin count and pitch, and whether the cable has contacts on the same side or opposite sides at each end;
-- whether the Pro, Mini B and Ultra W use the same pinout (the SC3336 camera fits all of them, which suggests yes).
+**Cable:** our J1 uses the same numbering (pin n on our board = pin n on the Luckfox), like a camera module. Whether that needs a same-side or opposite-side contact cable depends on which way the two connectors face. The Luckfox SC3336 camera already does this job: check its cable's contact sides, and whether the module's connector is top or bottom contact, and copy that.
 
-Also check on the Pico Pro and Mini B schematics whether the codec mic pins (`MIC0P/N` or `MIC1P/N`, `MICBIAS`) reach pads or header pins. That decides between mic plan A and plan B (see [Microphone](#microphone)).
-
-Our board uses: 2 data lanes + clock, I2C, RST → RSTB, GND. 3.3 V from the connector is not used for power (optional 0 Ω to the 3.3 V rail for testing without the 5 V pad). MCLK goes to the optional XTI link.
+Still to check: the Mini B uses the same 20-pin pinout (the SC3336 camera fits both, which suggests yes).
 
 ## Microphone
 
@@ -127,16 +143,27 @@ The mic goes on this board because it is the board that sits on the quad next to
 
 **Requirement** (from the COOAI board, see [bom-prelim.md](../dvr-recorder/docs/bom-prelim.md#microphone)): prop noise next to the motors is very loud; the COOAI mic input clipped up to 38 % of the time in flight. The mic must not overload before the SoC's input does.
 
-**Where the audio goes:** the RV1106/RV1103 has a built-in audio codec. The Luckfox Pico Ultra W schematic shows its pins: `CODEC_MIC0P/N`, `CODEC_MIC1P/N`, `CODEC_MICBIAS` and `LINEOUT`. The camera FPC carries no audio, so the mic connects to the Luckfox with **3 short wires** (MIC+, MIC−, AGND). Whether the Pico Pro and Mini B bring the mic pins out to pads is still to check (phase 1, step 0).
+**Where the audio goes:** the RV1106/RV1103 has a built-in audio codec. On the Luckfox Pico Pro/Max its pins come out to **test pads**:
+
+| Pad | Net | SoC pin |
+|---|---|---|
+| P4 | `MIC0_P` | CODEC_MIC0P (34) |
+| P5 | `MIC0_N` | CODEC_MIC0N (33) |
+| P7 | `MIC1_P` | CODEC_MIC1P (36) |
+| P8 | `MIC1_N` | CODEC_MIC1N (35) |
+| P6 | `LINEOUT` | CODEC_LINEOUT (29) |
+| P9 | `BIAS` (mic bias, from `VCC1V8_MICBIAS`) | CODEC_MICBIAS (32) |
+
+The camera FPC carries no audio, so the mic connects to **P4 and P5 (MIC0)** with **3 short twisted wires** (MIC+, MIC−, GND). Plan A works on the Pro/Max. Find the pads on the board (pad positions aren't in the schematic) and check the Mini B too.
 
 **Plan A, analog mic (default):**
 - **Mic:** Infineon IM73A135 analog MEMS, 135 dB SPL overload point, IP57, bottom port, as already chosen in the BOM notes.
-- **Supply:** 2.8 V LDO from the board's 3.3 V (the mic's supply range is 1.52–3 V). Optional 0 Ω to take the Luckfox's `MICBIAS` instead, if it can supply the mic's current.
+- **Supply:** 2.8 V LDO from the board's 3.3 V (the mic's supply range is 1.52–3 V). Optional 0 Ω to take the Luckfox's mic bias (pad P9, 1.8 V) instead, if it can supply the mic's current.
 - **Output:** the IM73A135 has a **differential** output (Output+ and Output−, from its LCSC symbol). Each side goes through a coupling cap to the codec's MICP and MICN, so the pair rejects noise picked up on the wires.
 - **Pads:** MIC+, MIC−, AGND at the board edge, next to the camera pads but away from the 1.2 V buck. Twist the three wires to the Luckfox.
 - **Port hole:** the PCB needs a hole under the mic, covered with acoustic mesh or foam against wind and prop wash.
 
-**Plan B, digital I2S mic:** if the Luckfox boards don't bring out the codec mic pins. The RV1106 has an I2S0 port (`I2S0_SCLK`, `I2S0_LRCK`, `I2S0_SDI0` on GPIO2_A0, A1 and A5 in the Ultra W schematic). An I2S MEMS mic needs 3 wires plus power, and its audio arrives already digital, so no analog noise pickup on the wires. The catch is overload: common I2S mics are around 120 dB SPL, below the IM73A135. Keep a footprint for one only if plan A is ruled out.
+**Plan B, digital I2S mic:** only needed if a board doesn't bring out the codec mic pins (the Pro/Max does). The RV1106 has an I2S0 port (`I2S0_SCLK`, `I2S0_LRCK`, `I2S0_SDI0` on GPIO2_A0, A1 and A5 in the Ultra W schematic). An I2S MEMS mic needs 3 wires plus power, and its audio arrives already digital, so no analog noise pickup on the wires. The catch is overload: common I2S mics are around 120 dB SPL, below the IM73A135. Keep a footprint for one only if plan A is ruled out.
 
 ## Layout
 

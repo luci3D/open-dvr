@@ -18,7 +18,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | U3 | 1 | Buck 2 A, 1.5 MHz, 2.5–5.5 V in, SOT-23-5 | C141836 | TLV62569DBVR | extended | 639 784 | 0.068 | 1.2 V for AVDD12 and DVDD |
 | L1 | 1 | 2.2 µH, 1.1 A, shielded, 2016 | C354533 | CKCS201610-2.2uH/M | extended | 49 936 | 0.041 | For U3 (load about 150 mA) |
 | R1–R2 | 2 | 100 kΩ 1 % 0402 (buck feedback) | C25741 | 0402WGF1003TCE | basic | 10.4 M | 0.001 | 0.6 V × (1 + 100k/100k) = 1.2 V |
-| U4 | 1 | LDO 1.8 V, SOT-23-5 | C236671 | ME6211C18M5G-N | extended | 39 878 | 0.066 | **Only if** the Luckfox camera I/O is 1.8 V |
+| U4 | 1 | LDO 1.8 V, SOT-23-5 (VIO) | C236671 | ME6211C18M5G-N | extended | 39 878 | 0.066 | VIO: the Luckfox camera I/O is 1.8 V |
 | U5 | 1 | LDO 2.8 V, SOT-23-5 (mic supply) | C53099 | ME6211C28M5G-N | extended | 13 257 | 0.065 | |
 | FB1–FB4 | 4 | Ferrite bead 120 Ω @ 100 MHz, 2 A, 0603 | C14709 | BLM18PG121SN1D | basic | 1.61 M | 0.014 | AVDD33, AVDD12, DVDD, camera 5 V |
 | D1 | 1 | ESD diode 0.6 pF, DFN1006-2 (video input) | C316041 | ESD9L5.0ST5G-N | extended | 300 102 | 0.026 | Low capacitance so it doesn't load the video line |
@@ -28,7 +28,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | R3 | 1 | 75 Ω 1 % 0402 (video termination) | C25133 | 0402WGF750JTCE | extended | 1.04 M | 0.001 | Behind JP1, open by default |
 | JP1 | 1 | Solder jumper (termination) | — | — | PCB | — | — | |
 | MK1 | 1 | MEMS mic, analog **differential**, 135 dB SPL, LLGA-5 4×3 | C3171831 | IM73A135V01XTSA1 | extended | 1 471 | 3.349 | Bottom port: hole in the PCB. Most expensive part after the decoder |
-| J1 | 1 | FPC 0.5 mm 20-pin, bottom contact, flip-top | C5362157 | 05A20L20P | extended | 4 083 | 0.071 | **Placeholder:** pin count and contact side from the Luckfox pinout |
+| J1 | 1 | FPC 0.5 mm 20-pin, bottom contact, flip-top | C5362157 | 05A20L20P | extended | 4 083 | 0.071 | 20 pins confirmed from the Luckfox Pro/Max schematic; contact side from the SC3336 cable |
 | J2 | 1 | SH 1.0 mm 3-pin, right angle (Video / 5 V / GND) | C3029342 | WAFER-SH1.0-3PWB | extended | 31 515 | 0.093 | Same connector type as the COOAI board, so its cables fit. Solder pads in parallel |
 | C3–C14 | 12 | 100 nF X7R 0402 | C1525 | CL05B104KO5NNNC | basic | 38.1 M | 0.002 | 8 decoder pins, RSTB, 2 video coupling, mic |
 | C15–C24 | 10 | 1 µF X5R 0402 | C52923 | CL05A105KA5NQNC | basic | 10.2 M | 0.006 | Analog rails, LDOs, 2 mic coupling |
@@ -46,8 +46,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | Of which the decoder (estimate) and the mic | ≈ 2.00 + 3.35 |
 | Extended part loading fees, once per order (14 types incl. the consigned decoder, about $3 each) | ≈ 42 |
 
-The loading fees dominate a small order. Ways to cut them:
-- Decide the I/O voltage early: if it's 3.3 V, drop U4 (−1 type).
+The loading fees dominate a small order. Ways to cut them (the 1.8 V LDO has to stay: the Luckfox camera I/O is 1.8 V):
 - J2 and R3 are easy to hand-solder (−2 types).
 - A basic-part 3.3 V LDO exists (XC6206P332MR, C5446), but it is noisier (40 dB PSRR) and only 200 mA; not worth it for the analog supply.
 
