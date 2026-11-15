@@ -132,7 +132,7 @@ The mic goes on this board because it is the board that sits on the quad next to
 **Plan A, analog mic (default):**
 - **Mic:** Infineon IM73A135 analog MEMS, 135 dB SPL overload point, IP57, bottom port, as already chosen in the BOM notes.
 - **Supply:** 2.8 V LDO from the board's 3.3 V (the mic's supply range is 1.52–3 V). Optional 0 Ω to take the Luckfox's `MICBIAS` instead, if it can supply the mic's current.
-- **Output:** AC-coupled into the codec as a pseudo-differential pair, like the video input: MIC+ from the mic output through a coupling cap, MIC− from the mic's ground through a cap. Check in the datasheet whether the IM73A135 output is single-ended or differential and adjust.
+- **Output:** the IM73A135 has a **differential** output (Output+ and Output−, from its LCSC symbol). Each side goes through a coupling cap to the codec's MICP and MICN, so the pair rejects noise picked up on the wires.
 - **Pads:** MIC+, MIC−, AGND at the board edge, next to the camera pads but away from the 1.2 V buck. Twist the three wires to the Luckfox.
 - **Port hole:** the PCB needs a hole under the mic, covered with acoustic mesh or foam against wind and prop wash.
 
@@ -149,32 +149,9 @@ The mic goes on this board because it is the board that sits on the quad next to
 - Exposed pad: via array to the ground plane (also the chip's heat path).
 - Target size: about 20 x 20 mm, with the FPC on one edge and the camera/power pads on the opposite edge.
 
-## Parts list (draft)
+## Parts list
 
-| # | Part | Example | Qty | Note |
-|---|---|---|---|---|
-| U1 | Video decoder, CVBS/AHD → MIPI CSI-2 | Techpoint TP9950-FA, QFN40 5x5 | 1 | JLC C2852602 (extended part). Price and stock not shown on the listing |
-| Y1 | Crystal 27 MHz, CL 20 pF, ±50 ppm | 3225 SMD | 1 | |
-| C | Crystal load caps | 33 pF C0G 0402 | 2 | Tune after first boards |
-| U2 | 3.3 V LDO, low noise, 5 V in | 150–300 mA, SOT-23-5 | 1 | |
-| U3 | 1.2 V buck, 2.5–5.5 V in, 0.5–1 A | SY8089A / TLV62569 class | 1 | + feedback divider |
-| L1 | Buck inductor | 2.2 µH, 2520 | 1 | |
-| U4 | 1.8 V LDO | Small SOT-23-5 | 1 | Only if `VIO` = 1.8 V |
-| FB | Ferrite beads | 600 Ω @ 100 MHz, 0402 | 4 | AVDD33, AVDD12, DVDD split, camera power |
-| D1 | Video input ESD diode | <1 pF, single line | 1 | |
-| D2 | 5 V input TVS | 5 V, SOD-323 | 1 | |
-| D3 | Reverse-polarity protection | Schottky or P-FET | 1 | |
-| F1 | Camera power polyfuse | 0.5 A hold, 0805/1206 | 1 | |
-| R | 75 Ω termination | 0402, 1 % | 1 | Behind JP1 |
-| JP1 | Termination jumper | Solder bridge | 1 | Open by default |
-| C | Video AC coupling | 0.1 µF X7R 0402 | 2 | VIN1P and VIN1N |
-| J1 | FPC connector to Luckfox | 0.5 mm, pin count TBD | 1 | After the pinout check |
-| — | Camera/power pads | Video, GND, 5 V; footprint for a 3-pin 1.25 mm header | 1 | |
-| MK1 | Analog MEMS mic, bottom port | Infineon IM73A135V01 | 1 | Long lead time at Digi-Key; buy early |
-| U5 | 2.8 V LDO for the mic | 150 mA, SOT-23-5 | 1 | Or 0 Ω from the Luckfox's MICBIAS |
-| C | Mic coupling caps | 1 µF X7R 0402 (check against the codec's input impedance) | 2 | |
-| — | Mic pads | MIC+, MIC−, AGND | 1 | Twisted wires to the Luckfox codec pins |
-| C, R | Decoupling and bulk caps, pull-ups, reset RC | 0402 / 0603 | ~20 | |
+The preliminary BOM, with JLCPCB part numbers, stock and prices, is in [bom.md](bom.md) ([bom.csv](bom.csv)). Every part comes from JLC except the decoder, which is bought separately and shipped to JLC.
 
 ## Checks on the COOAI board
 
