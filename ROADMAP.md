@@ -41,7 +41,7 @@ Everything below is stage 2.
 
 | Product | Hardware | Who it's for |
 |---|---|---|
-| **DIY kit** | The user's own Rockchip dev board (Luckfox Pico RV1103/RV1106 first, Radxa Zero 3W later) + our TP2850 decoder board + our IMU/mic breakout | People who already own a board or want to build their own |
+| **DIY kit** | The user's own Rockchip dev board (Luckfox Pico RV1103/RV1106 first, Radxa Zero 3W later) + our decoder board (video + mic) + our IMU breakout | People who already own a board or want to build their own |
 | **On-quad DVR, full size** | Our integrated RV1103 + TP2850 + IMU + mic board, 20 x 20 mm mounting | People who want the finished product |
 | **On-quad DVR, whoop** | Same circuit, smallest possible board | Whoops and micros |
 | **Goggle module (later)** | Radxa Zero 3W (RK3566) + TP2850: records the receiver's video, HDMI out, field-tools launcher | Replacement for stock goggle DVRs |
@@ -99,12 +99,13 @@ Optional later: the kernel's `st_lsm6dsx` IIO driver (supports the LSM6DSOX) wit
 
 ### Phase 1: decoder board + video on Luckfox
 0. With the Luckfox camera: run the stock image's camera demo, then capture with `v4l2-ctl` and encode with MPP ourselves. Check that it works on both the Pro and the Mini B. Note the camera FPC pinout and power pins for the decoder board.
-1. Design the small decoder board: decoder (TP9950, see [`decoder-board/`](decoder-board/)), crystal, regulators, video input pads (Video/GND), I2C, MIPI 2 lanes, FPC connector to match the Luckfox camera connector.
+1. Design the small decoder board: decoder (TP9950, see [`decoder-board/`](decoder-board/)), crystal, regulators, video input pads (Video/GND), I2C, MIPI 2 lanes, FPC connector to match the Luckfox camera connector, and the **microphone** (analog MEMS mic wired to the Luckfox's built-in codec; see [Microphone](decoder-board/README.md#microphone)).
 2. Device tree for the TP2850 on the Luckfox; get the TP9950 driver to probe the chip (ID `0x28 0x50` at `0x44`).
 3. Capture PAL and NTSC with `v4l2-ctl`, confirm field mode (288/240-line fields at 50/59.94 fps).
 4. Encode with MPP to H.264; check speed, CPU load, power and heat.
+5. Record the mic with `arecord` through the Luckfox codec: check the level with the codec boost off, and that loud sound (a speaker close to the mic, then motors on a strapped-down quad) doesn't clip.
 
-Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
+Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox, and an unclipped mic recording from the decoder board.
 
 #### Camera input (standard 3-wire analog FPV camera: V+, GND, Video)
 - **Camera power:** not from the FPC's 3.3 V (that is for the TP2850; cameras draw about 100–300 mA and many need 5 V). Bench: the Luckfox VBUS 5 V pin, if the camera accepts 5 V. On a quad: 5 V pass-through, optionally VBAT, picked with a solder jumper. Filter it (ferrite bead or inductor + 10–47 µF) so regulator ripple doesn't show as rolling lines. Add a polyfuse, and reverse-polarity protection if VBAT can reach the pad.
@@ -117,7 +118,7 @@ Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
 
 ### Phase 2: recorder port
 - Port `dvrrec` to V4L2 + MPP, reusing the TS writer, MP3, config and auto-detection.
-- Audio: mic capture (on-chip codec or I2S/PDM mic on the breakout, see open questions), synced like today.
+- Audio: mic capture from the decoder board's mic (tested in phase 1), synced like today.
 - IMU logging next to each clip (`DVR_0001.ts` + `DVR_0001.gcsv`).
 - Power-cut tests, long recordings at 20 Mbit/s, card-full behaviour, button and LEDs.
 
@@ -138,8 +139,8 @@ Hardware: Luckfox Pico Pro + USB WiFi dongle on its USB port (host mode). Option
 
 Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DVR's own access point, Gyroflow accepts both, and the speed target is met (aim for 5 MB/s or more: a 3-minute clip at 20 Mbit/s is about 450 MB).
 
-### Phase 4: IMU + mic breakout
-- Small board: LSM6DSOX (or its successor) on SPI + MEMS mic, with a connector or pads that suit the Luckfox and the Radxa.
+### Phase 4: IMU breakout
+- Small board: LSM6DSOX (or its successor) on SPI, with a connector or pads that suit the Luckfox and the Radxa. The mic is already on the decoder board.
 - Release Gerbers, BOM and the JLC assembly files for the DIY kit.
 
 ### Phase 5: integrated on-quad boards
@@ -162,7 +163,7 @@ Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DV
 - [ ] Camera I2C/reset voltage on the Luckfox connector: 1.8 V or 3.3 V? Sets the decoder's VDD_IO.
 - [ ] Is the TP2850 pin-compatible with the TP9950? Continuity check on the COOAI board ([list](decoder-board/README.md#checks-on-the-cooai-board)).
 - [ ] Which camera(s) for phase 1, and their voltage range? Sets the camera power section.
-- [ ] Mic: the RV1103's built-in codec (is the mic input broken out on the Luckfox boards?) or a digital I2S/PDM mic on the breakout?
+- [ ] Mic on the decoder board: do the Pico Pro and Mini B bring the codec mic pins (`MIC0P/N` or `MIC1P/N`, `MICBIAS`) out to pads? If yes, analog mic (plan A); if not, an I2S mic on I2S0 (plan B). (phase 1)
 - [ ] Storage on the integrated board: SPI NAND vs NOR, and how big?
 - [ ] WiFi on the Luckfox: does the Pico Pro's USB port work in host mode with the stock SDK image, and which dongle drivers does the SDK kernel include? (phase 3)
 - [ ] Does the Gyroflow mobile app load `.gcsv` files? (phase 3)

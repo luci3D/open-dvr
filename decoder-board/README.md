@@ -1,12 +1,13 @@
 # Decoder board (phase 1)
 
-A small board that turns an analog FPV camera signal (CVBS) into MIPI CSI-2 for a Luckfox Pico. It is the "TP2850 decoder board" from [phase 1 of the roadmap](../ROADMAP.md#phase-1-decoder-board--video-on-luckfox), and later part of the DIY kit.
+A small board that turns an analog FPV camera signal (CVBS) into MIPI CSI-2 for a Luckfox Pico, and carries the DVR's microphone. It is the "TP2850 decoder board" from [phase 1 of the roadmap](../ROADMAP.md#phase-1-decoder-board--video-on-luckfox), and later part of the DIY kit.
 
 Status: **design start, 2026-11-14.** Nothing is drawn yet. This file holds the pin map, the parts list and what still has to be checked before the schematic.
 
 ```
 Camera / FC video line ──(parallel tap)──► input network ──► TP9950 ──MIPI 2 lanes + I2C──► FPC ──► Luckfox CSI
 5 V pad (from Luckfox VBUS or the FC) ──► camera power out, 3.3 V LDO, 1.2 V buck
+MEMS mic ──► MIC pads ──(3 short wires)──► Luckfox codec mic input
 ```
 
 ## Chip: TP9950 instead of TP2850
@@ -116,13 +117,33 @@ To do (phase 1, step 0): get the Pico Pro and Mini B pinout from their schematic
 - pin count and pitch, and whether the cable has contacts on the same side or opposite sides at each end;
 - whether the Pro, Mini B and Ultra W use the same pinout (the SC3336 camera fits all of them, which suggests yes).
 
+Also check on the Pico Pro and Mini B schematics whether the codec mic pins (`MIC0P/N` or `MIC1P/N`, `MICBIAS`) reach pads or header pins. That decides between mic plan A and plan B (see [Microphone](#microphone)).
+
 Our board uses: 2 data lanes + clock, I2C, RST → RSTB, GND. 3.3 V from the connector is not used for power (optional 0 Ω to the 3.3 V rail for testing without the 5 V pad). MCLK goes to the optional XTI link.
+
+## Microphone
+
+The mic goes on this board because it is the board that sits on the quad next to the video wiring, and it already has clean local supplies. That saves a separate mic board for the DIY kit.
+
+**Requirement** (from the COOAI board, see [bom-prelim.md](../dvr-recorder/docs/bom-prelim.md#microphone)): prop noise next to the motors is very loud; the COOAI mic input clipped up to 38 % of the time in flight. The mic must not overload before the SoC's input does.
+
+**Where the audio goes:** the RV1106/RV1103 has a built-in audio codec. The Luckfox Pico Ultra W schematic shows its pins: `CODEC_MIC0P/N`, `CODEC_MIC1P/N`, `CODEC_MICBIAS` and `LINEOUT`. The camera FPC carries no audio, so the mic connects to the Luckfox with **3 short wires** (MIC+, MIC−, AGND). Whether the Pico Pro and Mini B bring the mic pins out to pads is still to check (phase 1, step 0).
+
+**Plan A, analog mic (default):**
+- **Mic:** Infineon IM73A135 analog MEMS, 135 dB SPL overload point, IP57, bottom port, as already chosen in the BOM notes.
+- **Supply:** 2.8 V LDO from the board's 3.3 V (the mic's supply range is 1.52–3 V). Optional 0 Ω to take the Luckfox's `MICBIAS` instead, if it can supply the mic's current.
+- **Output:** AC-coupled into the codec as a pseudo-differential pair, like the video input: MIC+ from the mic output through a coupling cap, MIC− from the mic's ground through a cap. Check in the datasheet whether the IM73A135 output is single-ended or differential and adjust.
+- **Pads:** MIC+, MIC−, AGND at the board edge, next to the camera pads but away from the 1.2 V buck. Twist the three wires to the Luckfox.
+- **Port hole:** the PCB needs a hole under the mic, covered with acoustic mesh or foam against wind and prop wash.
+
+**Plan B, digital I2S mic:** if the Luckfox boards don't bring out the codec mic pins. The RV1106 has an I2S0 port (`I2S0_SCLK`, `I2S0_LRCK`, `I2S0_SDI0` on GPIO2_A0, A1 and A5 in the Ultra W schematic). An I2S MEMS mic needs 3 wires plus power, and its audio arrives already digital, so no analog noise pickup on the wires. The catch is overload: common I2S mics are around 120 dB SPL, below the IM73A135. Keep a footprint for one only if plan A is ruled out.
 
 ## Layout
 
 - **4 layers** (JLC 4-layer is cheap; the integrated board will be 4 layers anyway): signals / GND / power / signals.
 - MIPI pairs: 100 Ω differential, matched length within each pair and between pairs, over solid ground, no vias if possible. The data rate is low for CVBS, but keep it clean.
 - Video input: short trace from the pad to pin 7, over solid ground, away from the 1.2 V buck's switch node and inductor, and away from the MIPI pairs.
+- Mic: on the opposite edge from the buck, with its port hole clear of components; mic traces short and over ground.
 - The 1.2 V buck on the far side of the board from the video input.
 - Decoupling caps on the same side as the chip, at each power pin.
 - Exposed pad: via array to the ground plane (also the chip's heat path).
@@ -149,6 +170,10 @@ Our board uses: 2 data lanes + clock, I2C, RST → RSTB, GND. 3.3 V from the con
 | C | Video AC coupling | 0.1 µF X7R 0402 | 2 | VIN1P and VIN1N |
 | J1 | FPC connector to Luckfox | 0.5 mm, pin count TBD | 1 | After the pinout check |
 | — | Camera/power pads | Video, GND, 5 V; footprint for a 3-pin 1.25 mm header | 1 | |
+| MK1 | Analog MEMS mic, bottom port | Infineon IM73A135V01 | 1 | Long lead time at Digi-Key; buy early |
+| U5 | 2.8 V LDO for the mic | 150 mA, SOT-23-5 | 1 | Or 0 Ω from the Luckfox's MICBIAS |
+| C | Mic coupling caps | 1 µF X7R 0402 (check against the codec's input impedance) | 2 | |
+| — | Mic pads | MIC+, MIC−, AGND | 1 | Twisted wires to the Luckfox codec pins |
 | C, R | Decoupling and bulk caps, pull-ups, reset RC | 0402 / 0603 | ~20 | |
 
 ## Checks on the COOAI board
