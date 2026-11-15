@@ -8,6 +8,7 @@
 !/dvr-recorder/
 !/dvr-probe/
 !/imu-probe/
+!/decoder-board/
 
 # Test recordings and build output stay local (clips are hundreds of MB)
 results/

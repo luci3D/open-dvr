@@ -96,7 +96,7 @@ Optional later: the kernel's `st_lsm6dsx` IIO driver (supports the LSM6DSOX) wit
 
 ### Phase 1: decoder board + video on Luckfox
 0. With the Luckfox camera: run the stock image's camera demo, then capture with `v4l2-ctl` and encode with MPP ourselves. Check that it works on both the Pro and the Mini B. Note the camera FPC pinout and power pins for the decoder board.
-1. Design the small TP2850 board: TP2850, crystal, regulators, video input pads (Video/GND), I2C, MIPI 2 lanes, FPC connector to match the Luckfox camera connector.
+1. Design the small decoder board: decoder (TP9950, see [`decoder-board/`](decoder-board/)), crystal, regulators, video input pads (Video/GND), I2C, MIPI 2 lanes, FPC connector to match the Luckfox camera connector.
 2. Device tree for the TP2850 on the Luckfox; get the TP9950 driver to probe the chip (ID `0x28 0x50` at `0x44`).
 3. Capture PAL and NTSC with `v4l2-ctl`, confirm field mode (288/240-line fields at 50/59.94 fps).
 4. Encode with MPP to H.264; check speed, CPU load, power and heat.
@@ -138,7 +138,9 @@ Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
 - [ ] Do MPP and V4L2 give the same capture/encode path on the RV1103 and the RK3566? (phase 1)
 - [ ] Does the Rockchip capture block take the TP2850 field-mode output as-is? (phase 1)
 - [ ] Camera FPC pinouts: Luckfox vs Radxa. One decoder board with two connector options, or one per board?
-- [ ] Is the camera connector's 3.3 V enough for the TP2850, or does the decoder board need its own regulator?
+- [x] Is the camera connector's 3.3 V enough for the TP2850, or does the decoder board need its own regulator? The decoder board takes its own 5 V (shared with the camera) and makes 3.3 V and 1.2 V locally ([decoder-board](decoder-board/README.md#power)).
+- [ ] Camera I2C/reset voltage on the Luckfox connector: 1.8 V or 3.3 V? Sets the decoder's VDD_IO.
+- [ ] Is the TP2850 pin-compatible with the TP9950? Continuity check on the COOAI board ([list](decoder-board/README.md#checks-on-the-cooai-board)).
 - [ ] Which camera(s) for phase 1, and their voltage range? Sets the camera power section.- [ ] Mic: the RV1103's built-in codec (is the mic input broken out on the Luckfox boards?) or a digital I2S/PDM mic on the breakout?
 - [ ] Storage on the integrated board: SPI NAND vs NOR, and how big?
 - [ ] Goggles: which models have HDMI in? Power and heat budget of the Zero 3W in a goggle bay.
