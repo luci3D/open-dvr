@@ -28,7 +28,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | R3 | 1 | 75 Ω 1 % 0402 (video termination) | C25133 | 0402WGF750JTCE | extended | 1.04 M | 0.001 | Behind JP1, open by default |
 | JP1 | 1 | Solder jumper (termination) | — | — | PCB | — | — | |
 | MK1 | 1 | MEMS mic, analog **differential**, 135 dB SPL, LLGA-5 4×3 | C3171831 | IM73A135V01XTSA1 | extended | 1 471 | 3.349 | Bottom port: hole in the PCB. Most expensive part after the decoder |
-| J1 | 1 | FPC 0.5 mm 20-pin, bottom contact, flip-top | C5362157 | 05A20L20P | extended | 4 083 | 0.071 | 20 pins confirmed from the Luckfox Pro/Max schematic; contact side from the SC3336 cable |
+| J1 | 1 | FPC 0.5 mm 20-pin, bottom contact, flip-top | C5362157 | 05A20L20P | extended | 4 083 | 0.071 | 20 pins confirmed from the Luckfox Pro/Max schematic. Pin order measured on the stock cable (see [README](README.md#host-connector-fpc)); check the insertion side on the drawing |
 | J2 | 1 | SH 1.0 mm 3-pin, right angle (Video / 5 V / GND) | C3029342 | WAFER-SH1.0-3PWB | extended | 31 515 | 0.093 | Same connector type as the COOAI board, so its cables fit. Solder pads in parallel |
 | C3–C14 | 12 | 100 nF X7R 0402 | C1525 | CL05B104KO5NNNC | basic | 38.1 M | 0.002 | 8 decoder pins, RSTB, 2 video coupling, mic |
 | C15–C24 | 10 | 1 µF X5R 0402 | C52923 | CL05A105KA5NQNC | basic | 10.2 M | 0.006 | Analog rails, LDOs, 2 mic coupling |
@@ -50,7 +50,7 @@ The loading fees dominate a small order. Ways to cut them (the 1.8 V LDO has to 
 - J2 and R3 are easy to hand-solder (−2 types).
 - A basic-part 3.3 V LDO exists (XC6206P332MR, C5446), but it is noisier (40 dB PSRR) and only 200 mA; not worth it for the analog supply.
 
-Not included: PCB (4 layers), assembly fee, the consignment shipping, and the FPC cable to the Luckfox (comes with the Luckfox camera, or buy a 0.5 mm cable of the right length and contact type).
+Not included: PCB (4 layers), assembly fee, the consignment shipping, and the FPC cable to the Luckfox (comes with the Luckfox camera; spares must be 0.5 mm, 20 conductors, **opposite-side** contacts).
 
 ## KiCad footprints
 

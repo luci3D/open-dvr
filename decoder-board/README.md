@@ -133,7 +133,19 @@ From the Luckfox Pico Pro/Max schematic, connector `H1` (`CAM`), **0.5 mm, 20 pi
 | 17, 18 | GND | GND |
 | 19, 20 | `VCC_3V3` | Not used for power; optional 0 Ω to our 3.3 V rail, not fitted |
 
-**Cable:** our J1 uses the same numbering (pin n on our board = pin n on the Luckfox), like a camera module. Whether that needs a same-side or opposite-side contact cable depends on which way the two connectors face. The Luckfox SC3336 camera already does this job: check its cable's contact sides, and whether the module's connector is top or bottom contact, and copy that.
+**Cable** (measured on the bench, 2026-11-17, with the cable plugged into the Luckfox and a meter on the 3.3 V header pin):
+- The stock Luckfox camera cable (0.5 mm, 20 conductors) has its contacts on **opposite faces** at its two ends.
+- At the free end, looking at the contacts with the cable's tip pointing toward you (the cable running away from you to the Luckfox): **pins 19–20 (3.3 V) are on the right**, so pin 1 is on the left.
+
+**What that means for J1** (bottom-contact connector on the top side of our board): the cable's contacts face down into it. Seen from above, with the cable coming in from the top edge of the board, **Luckfox pin 1 lands on the right** and pin 20 on the left.
+
+**Footprint mapping:** in our J1 footprint, pad 1 is at the left end of the pad row (the triangle marks it). Which J1 pad gets which Luckfox pin depends on which side of the connector the cable goes in:
+- cable enters on the side **opposite** the pads: rotate the footprint so the entry faces the cable, pad 1 ends up on the right → **straight** (J1 pad n = Luckfox pin n);
+- cable enters on the **pad side**: pad 1 stays on the left → **reversed** (J1 pad n = Luckfox pin 21 − n).
+
+Check the insertion side on the 05A20L20P drawing before naming the J1 nets in the schematic.
+
+**Spare cables** must also be **opposite-side** (sometimes sold as "Type B" or "reverse"), 0.5 mm, 20 conductors. A same-side cable mirrors the pin order and won't work with this layout.
 
 Still to check: the Mini B uses the same 20-pin pinout (the SC3336 camera fits both, which suggests yes).
 
