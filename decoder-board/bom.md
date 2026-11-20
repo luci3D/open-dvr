@@ -37,7 +37,6 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | C25–C27 | 3 | 10 µF X5R 0603 | C19702 | CL10A106KP8NNNC | basic | 11.6 M | 0.023 | DVDD bulk, buck in/out |
 | C28–C30 | 3 | 22 µF X5R 25 V 0805 | C45783 | CL21A226MAQNNNE | basic | 4.12 M | 0.108 | 5 V input, camera out, buck out |
 | R4–R5 | 2 | 10 kΩ 1 % 0402 | C25744 | 0402WGF1002TCE | basic | 21.1 M | 0.001 | RSTB pull-up, Q1 gate |
-| R7–R8 | 2 | 4.7 kΩ 1 % 0402 (I2C pull-ups) | C25900 | 0402WGF4701TCE | basic | 14.1 M | 0.002 | **Not fitted:** the Luckfox has its own |
 | R9–R14 | 6 | 0 Ω 0402 jumpers | C17168 | 0402WGF0000TCE | basic | 15.6 M | 0.001 | Fitted: R9 (VIO from U4), R13/R14 (mic series). Not fitted: R10 (VIO from 3.3 V), R11 (MCLK→XTI), R12 (FPC 3.3 V) |
 | R15 | 1 | Mic attenuator across the pair, 0402 | C25744 | 0402WGF1002TCE | basic | 21.1 M | 0.001 | **Not fitted**; 10 k is a placeholder, the breadboard test sets the value |
 

@@ -28,3 +28,4 @@ decoder-board/kicad/*.lck
 
 # Python caches
 __pycache__/
+decoder-board/kicad/.history/

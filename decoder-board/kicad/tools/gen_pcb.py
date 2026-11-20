@@ -39,13 +39,12 @@ PLACE = {
     'J1': (15.2, 4.3, 180),
     # Decoder: MIPI side (pins 21-26) faces J1, video pins (7, 8) face down, crystal on the left
     'U1': (11.5, 12.5, 0),
-    'Y1': (4.6, 12.5, 0), 'C1': (4.6, 10.2, 0), 'C2': (4.6, 14.8, 0),
-    'R11': (8.2, 7.1, 0),
-    'C6': (8.0, 8.5, 0), 'C9': (10.2, 8.5, 0),                    # DVDD 28, VIO 27 (top-left)
-    'C10': (7.7, 11.2, 90), 'C7': (7.7, 14.0, 90),                # VIO 35, DVDD 40 (left)
+    'Y1': (4.6, 12.5, 270), 'C1': (4.6, 9.6, 0), 'C2': (4.6, 15.1, 180),   # XTI pad upper left, XTO lower right
+    'R11': (3.0, 7.9, 270),                                       # MCLK -> XTI option (DNP)
+    'C6': (7.3, 9.3, 180), 'C9': (7.3, 8.3, 180),                 # DVDD 28, VIO 27 (top-left, clear of the lane 1 vias)
+    'C10': (7.7, 11.2, 90), 'C7': (7.6, 14.9, 270),                # VIO 35, DVDD 40 (left)
     'C8': (16.0, 13.0, 0), 'C5': (16.0, 14.4, 0),                 # VIO 14, DVDD 11 (right)
     'R4': (18.6, 10.8, 90), 'C11': (19.8, 10.8, 90),              # RSTB pull-up and cap
-    'R7': (21.0, 10.8, 90), 'R8': (22.2, 10.8, 90),               # I2C pull-ups (DNP)
     'R12': (21.6, 7.4, 0),                                        # Luckfox 3.3 V link (DNP)
     'C3': (9.7, 17.1, 270), 'C4': (10.9, 17.1, 270),              # AVDD33 / AVDD12 100 nF
     'C12': (12.1, 17.1, 90), 'C13': (13.3, 17.1, 270),            # video coupling caps
@@ -69,8 +68,8 @@ PLACE = {
     # Mic (bottom right): MK1 with its sound hole, LDO, coupling caps, attenuator
     'MK1': (25.4, 28.6, 0),
     'U5': (22.6, 22.6, 0), 'C20': (25.6, 21.8, 90), 'C21': (25.6, 24.0, 90), 'C14': (22.4, 25.4, 0),
-    'C22': (22.6, 31.2, 0), 'C23': (22.6, 32.6, 0),
-    'R13': (20.4, 31.2, 0), 'R14': (20.4, 32.6, 0), 'R15': (18.6, 31.8, 90),
+    'C22': (22.6, 31.2, 180), 'C23': (22.6, 32.6, 180),           # mic side on the right
+    'R13': (20.4, 31.2, 180), 'R14': (20.4, 32.6, 180), 'R15': (21.6, 33.65, 0),
     # One row of 10 holes along the bottom edge (wires or a 2.54 mm header)
     'J3': (2.57, 36.0, 90),
     'H1': (2.6, 2.6, 0), 'H2': (25.8, 2.4, 0),
@@ -93,8 +92,8 @@ NETCLASSES = [
     # name, track, clearance, via dia, via drill, diff width, diff gap, patterns
     ('Default', 0.15, 0.15, 0.5, 0.3, 0.2, 0.15, []),
     ('Power', 0.4, 0.2, 0.6, 0.3, 0.2, 0.15,
-     ['/VIN_RAW', '/5V', '/CAM_5V*', '/SW_1V2', '/1V2', '/DVDD', '/3V3']),
-    ('MIPI', 0.2, 0.15, 0.5, 0.3, 0.2, 0.15, ['/MIPI_*']),
+     ['/VIN_RAW', '/5V', '/CAM_5V*', '/SW_1V2', '/1V2', '/3V3']),
+    ('MIPI', 0.2, 0.15, 0.5, 0.3, 0.2, 0.2, ['/MIPI_*']),
     ('Analog', 0.2, 0.2, 0.5, 0.3, 0.2, 0.15, ['/VIDEO_IN', '/VIN1P', '/VIN1N', '/TERM', '/MIC_*']),
 ]
 
@@ -236,7 +235,8 @@ def main():
         board.Add(z)
 
     x0, y0, _ = PLACE['J3']
-    labels = SILK + [(lab, x0 + 2.54 * i, y0 - 2.3, 0.6, 0, 'F') for i, lab in enumerate(J3_LABELS)]
+    nudge = {'M+': -0.2, 'M-': 0.2}       # clear of R15's pads
+    labels = SILK + [(lab, x0 + 2.54 * i + nudge.get(lab, 0), y0 - 2.3, 0.6, 0, 'F') for i, lab in enumerate(J3_LABELS)]
     for text, x, y, size, angle, side in labels:
         t = pcbnew.PCB_TEXT(board)
         t.SetText(text)
