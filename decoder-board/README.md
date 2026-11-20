@@ -318,6 +318,8 @@ powershell -ExecutionPolicy Bypass -File decoder-board\kicad\tools\route\route_b
 
 **Worth a look in KiCad before ordering:** the router's tracks are correct but not pretty; some take detours that a person would shorten (VIDEO_IN is 23 mm from J2 to C12, 3V3 and 5V wander). Nothing in the high-speed or analog paths depends on that, but tidying them is an easy first KiCad session.
 
+**Regulator noise check (2026-11-19, after the hand tidy):** U3 (TLV62569, 1.5 MHz buck with L1) is the only switching regulator; U2, U4 and U5 are LDOs. Measured edge to edge from the switch node copper (U3 pin 3, L1 pin 1): video (VIDEO_IN, VIN1P/N) 8 mm or more, MIPI 9 mm, crystal 12 mm, mic 11 mm, I2C 6.7 mm, RSTB 4.4 mm (a driven, slow line), and the buck's own FB node 2.8 mm (short, keep it that way). The one weak spot was the 3V3 run from C20 up the right edge to R12 (not fitted, FPC 3.3 V option): a 17 mm stub passing 3 mm from L1. It now runs on B.Cu, shielded from the switch node by the two GND planes. The 5V net is long (about 47 mm) because it fans out from Q1/F1 at the bottom left to J3, U2 and U3, but it carries well under 1 A (about 11 mV drop) and the buck's input loop (C25 to U3) is local.
+
 ## Layout
 
 - **4 layers** (JLC 4-layer is cheap; the integrated board will be 4 layers anyway): signals / GND / power / signals.
