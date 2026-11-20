@@ -163,7 +163,8 @@ Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DV
 - [x] Camera I2C/reset voltage on the Luckfox connector: **1.8 V** (Pico Pro/Max schematic), so the decoder's VDD_IO is 1.8 V.
 - [ ] Is the TP2850 pin-compatible with the TP9950? Continuity check on the COOAI board ([list](decoder-board/README.md#checks-on-the-cooai-board)).
 - [ ] Which camera(s) for phase 1, and their voltage range? Sets the camera power section.
-- [x] Mic on the decoder board: the Pico Pro/Max brings the codec mic pins out to test pads (P4/P5 = MIC0, P9 = bias), so the analog mic (plan A) works. Still to check on the Mini B.
+- [x] Mic on the decoder board: the Pico Pro/Max brings MIC0, mic bias and line out to four unlabeled round pads next to the RTC connector (confirmed by continuity; map in [decoder-board](decoder-board/README.md#microphone)), so the analog mic (plan A) works. Still to check on the Mini B.
+- [ ] Enable the RV1106 audio codec in the Luckfox device tree (the wiki says the Pro/Max doesn't expose audio, so the stock image probably has it off). (phase 1)
 - [ ] Storage on the integrated board: SPI NAND vs NOR, and how big?
 - [ ] WiFi on the Luckfox: does the Pico Pro's USB port work in host mode with the stock SDK image, and which dongle drivers does the SDK kernel include? (phase 3)
 - [ ] Does the Gyroflow mobile app load `.gcsv` files? (phase 3)

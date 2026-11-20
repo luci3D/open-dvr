@@ -166,11 +166,24 @@ The mic goes on this board because it is the board that sits on the quad next to
 | P6 | `LINEOUT` | CODEC_LINEOUT (29) |
 | P9 | `BIAS` (mic bias, from `VCC1V8_MICBIAS`) | CODEC_MICBIAS (32) |
 
-The camera FPC carries no audio, so the mic connects to **P4 and P5 (MIC0)** with **3 short twisted wires** (MIC+, MIC−, GND). Plan A works on the Pro/Max. Find the pads on the board (pad positions aren't in the schematic) and check the Mini B too.
+**Where they are on the board** (confirmed by continuity to the SoC pins, 2026-11-17): the row of **four round gold pads** on the top side, next to the RTC battery connector, just above header pins 21–26. Numbered left to right with the camera connector on the left:
+
+| Pad on the board | SoC pin | Net | Schematic pad |
+|---|---|---|---|
+| 1 | 29 | `LINEOUT` | P6 |
+| 2 | 32 | Mic bias (1.8 V) | P9 |
+| 3 | 34 | **`MIC0_P`** | P4 |
+| 4 | 33 | **`MIC0_N`** | P5 |
+
+MIC1 (P7, P8) isn't on these pads, and we don't need it.
+
+**Wiring:** the camera FPC carries no audio, so the mic connects with **3 short twisted wires**: MIC+ → pad 3, MIC− → pad 4, GND → header pin 23 (the square pad just below; GND in the Pico pinout, check it beeps to GND). Check the Mini B too.
+
+**Software:** the Luckfox wiki says the Pro/Max "does not expose" the audio pins, and its audio tutorial is for the Ultra W only. The stock image probably has the codec turned off, so expect to enable it in the device tree of our build.
 
 **Plan A, analog mic (default):**
 - **Mic:** Infineon IM73A135 analog MEMS, 135 dB SPL overload point, IP57, bottom port, as already chosen in the BOM notes.
-- **Supply:** 2.8 V LDO from the board's 3.3 V (the mic's supply range is 1.52–3 V). Optional 0 Ω to take the Luckfox's mic bias (pad P9, 1.8 V) instead, if it can supply the mic's current.
+- **Supply:** 2.8 V LDO from the board's 3.3 V (the mic's supply range is 1.52–3 V). Optional 0 Ω to take the Luckfox's mic bias (pad 2, 1.8 V) instead, if it can supply the mic's current; that would need a 4th wire.
 - **Output:** the IM73A135 has a **differential** output (Output+ and Output−, from its LCSC symbol). Each side goes through a coupling cap to the codec's MICP and MICN, so the pair rejects noise picked up on the wires.
 - **Pads:** MIC+, MIC−, AGND at the board edge, next to the camera pads but away from the 1.2 V buck. Twist the three wires to the Luckfox.
 - **Port hole:** the PCB needs a hole under the mic, covered with acoustic mesh or foam against wind and prop wash.
