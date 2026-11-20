@@ -54,7 +54,7 @@
 			)
 		)
 	)
-	(pad "" thru_hole circle (at -0.00 0.81) (size 0.70 0.70) (drill 0.70) (layers *.Cu *.Mask))
+	(pad "" thru_hole circle (at -0.00 0.81) (size 0.80 0.80) (drill 0.80) (layers *.Cu *.Mask))
 	(fp_circle (center 1.50 -1.87) (end 1.53 -1.87) (layer F.SilkS) (width 0.06))
 	(fp_circle (center 1.96 -1.60) (end 2.11 -1.60) (layer Cmts.User) (width 0.30))
 	(fp_circle (center -0.00 0.81) (end 0.15 0.81) (layer Cmts.User) (width 0.30))

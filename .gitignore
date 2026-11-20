@@ -19,3 +19,9 @@ dist/
 
 # KiCad 3D models fetched by decoder-board/kicad/fetch_parts.ps1 (large, regenerable)
 decoder-board/kicad/lib/lcsc.3dshapes/
+
+# KiCad per-user and generated files
+decoder-board/kicad/*.kicad_prl
+decoder-board/kicad/*-backups/
+decoder-board/kicad/fp-info-cache
+decoder-board/kicad/*.lck

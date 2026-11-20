@@ -99,13 +99,13 @@ Optional later: the kernel's `st_lsm6dsx` IIO driver (supports the LSM6DSOX) wit
 
 ### Phase 1: decoder board + video on Luckfox
 0. With the Luckfox camera: run the stock image's camera demo, then capture with `v4l2-ctl` and encode with MPP ourselves. Check that it works on both the Pro and the Mini B. Note the camera FPC pinout and power pins for the decoder board.
-1. Design the small decoder board: decoder (TP9950, see [`decoder-board/`](decoder-board/)), crystal, regulators, video input pads (Video/GND), I2C, MIPI 2 lanes, FPC connector to match the Luckfox camera connector, and the **microphone** (analog MEMS mic wired to the Luckfox's built-in codec; see [Microphone](decoder-board/README.md#microphone)).
+1. Design the small decoder board: decoder (TP9950, see [`decoder-board/`](decoder-board/)), crystal, regulators, video input pads (Video/GND), I2C, MIPI 2 lanes, FPC connector to match the Luckfox camera connector, and the **microphone** (analog MEMS mic wired to the Luckfox's built-in codec; see [Microphone](decoder-board/README.md#microphone)). **This is our first piece of hardware and the DIY kit board** (decided 2026-11-19): a separate board on the camera cable plus a few wires, video and mic only. Schematic v0.1 is in [`decoder-board/kicad/`](decoder-board/kicad/); next is the PCB layout and a JLC order.
 2. Device tree for the TP2850 on the Luckfox; get the TP9950 driver to probe the chip (ID `0x28 0x50` at `0x44`).
 3. Capture PAL and NTSC with `v4l2-ctl`, confirm field mode (288/240-line fields at 50/59.94 fps).
 4. Encode with MPP to H.264; check speed, CPU load, power and heat.
 5. Record the mic with `arecord` through the Luckfox codec: check the level with the codec boost off, and that loud sound (a speaker close to the mic, then motors on a strapped-down quad) doesn't clip.
 
-Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox, and an unclipped mic recording from the decoder board.
+Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox, and an unclipped mic recording from the decoder board. Then release the decoder board's Gerbers, BOM and JLC assembly files as the DIY kit.
 
 #### Camera input (standard 3-wire analog FPV camera: V+, GND, Video)
 - **Camera power:** not from the FPC's 3.3 V (that is for the TP2850; cameras draw about 100–300 mA and many need 5 V). Bench: the Luckfox VBUS 5 V pin, if the camera accepts 5 V. On a quad: 5 V pass-through, optionally VBAT, picked with a solder jumper. Filter it (ferrite bead or inductor + 10–47 µF) so regulator ripple doesn't show as rolling lines. Add a polyfuse, and reverse-polarity protection if VBAT can reach the pad.
@@ -141,7 +141,7 @@ Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DV
 
 ### Phase 4: IMU breakout
 - Small board: LSM6DSOX (or its successor) on SPI, with a connector or pads that suit the Luckfox and the Radxa. The mic is already on the decoder board.
-- Release Gerbers, BOM and the JLC assembly files for the DIY kit.
+- Release its Gerbers, BOM and JLC assembly files as an add-on to the DIY kit.
 
 ### Phase 5: integrated on-quad boards
 - RV1103 + TP2850 + SPI NOR/NAND + microSD + IMU + mic + WiFi (chip from phase 3) + regulators on one board, starting from the open Luckfox Pico schematic.

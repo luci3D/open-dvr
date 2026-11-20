@@ -1,14 +1,27 @@
-# Decoder board (phase 1)
+# Decoder board (phase 1): the DIY kit board
 
-A small board that turns an analog FPV camera signal (CVBS) into MIPI CSI-2 for a Luckfox Pico, and carries the DVR's microphone. It is the "TP2850 decoder board" from [phase 1 of the roadmap](../ROADMAP.md#phase-1-decoder-board--video-on-luckfox), and later part of the DIY kit.
+A small board that turns an analog FPV camera signal (CVBS) into MIPI CSI-2 for a Luckfox Pico, and carries the DVR's microphone. Plugged into a Luckfox Pico Pro/Max with the camera ribbon cable and a few wires, it makes a complete DVR module. It is **our first piece of hardware and the DIY kit board** (decided 2026-11-19): video decoder and mic, on a separate board connected by cable. The IMU stays a separate breakout for later ([roadmap phase 4](../ROADMAP.md#phase-4-imu-breakout)).
 
-Status: **design start, 2026-11-14.** Nothing is drawn yet. This file holds the pin map, the parts list and what still has to be checked before the schematic.
+Status: **schematic v0.1, 2026-11-19** ([`kicad/`](kicad/), see [Schematic](#schematic)). Next: PCB layout.
 
 ```
-Camera / FC video line ──(parallel tap)──► input network ──► TP9950 ──MIPI 2 lanes + I2C──► FPC ──► Luckfox CSI
-5 V pad (from Luckfox VBUS or the FC) ──► camera power out, 3.3 V LDO, 1.2 V buck
-MEMS mic ──► MIC pads ──(3 short wires)──► Luckfox codec mic input
+FC video line ──(parallel tap)──► J2/J3 ──► input network ──► TP9950 ──MIPI 2 lanes + I2C──► J1 FPC ──► Luckfox camera connector
+FC 5 V ──► J2/J3 ──► reverse-polarity FET ──► 5 V ──► 3.3 V LDO, 1.2 V buck, J4 camera 5 V out, J5 5 V to Luckfox VSYS
+MEMS mic ──► J6 ──(3 short wires)──► Luckfox codec pads 3/4 + GND
 ```
+
+## Connectors
+
+| Ref | Type | Pins | Goes to |
+|---|---|---|---|
+| J1 | FPC 0.5 mm 20-pin, bottom contact (JLC-assembled) | Luckfox camera pinout, pin n = Luckfox pin n | Luckfox camera connector, stock opposite-side cable |
+| J2 | SH 1.0 mm 3-pin (JLC-assembled) | 1 Video, 2 5 V in, 3 GND | The FC: camera video line (parallel tap) and 5 V; same harness as the COOAI DVR |
+| J3 | 2.54 mm holes ×3 | 1 Video, 2 5 V in, 3 GND | Same as J2, for soldered wires or pin headers |
+| J4 | 2.54 mm holes ×2 | 1 Camera 5 V (polyfuse), 2 GND | Powers a camera on the bench |
+| J5 | 2.54 mm holes ×2 | 1 5 V, 2 GND | Luckfox **VSYS (header pin 39)** and GND: one 5 V feed from the FC powers both boards. VSYS is the Luckfox's 5 V system rail; its USB-C input reaches it through a Schottky diode, so USB can stay plugged in |
+| J6 | 2.54 mm holes ×3 | 1 MIC+, 2 MIC−, 3 GND | Luckfox codec pad 3 (MIC0+), pad 4 (MIC0−), header pin 23 (GND) |
+
+The 2.54 mm holes take wires for a quad, or pin headers so the board plugs into a breadboard for bench tests.
 
 ## Chip: TP9950 instead of TP2850
 
@@ -181,14 +194,67 @@ MIC1 (P7, P8) isn't on these pads, and we don't need it.
 
 **Software:** the Luckfox wiki says the Pro/Max "does not expose" the audio pins, and its audio tutorial is for the Ultra W only. The stock image probably has the codec turned off, so expect to enable it in the device tree of our build.
 
-**Plan A, analog mic (default):**
-- **Mic:** Infineon IM73A135 analog MEMS, 135 dB SPL overload point, IP57, bottom port, as already chosen in the BOM notes.
-- **Supply:** 2.8 V LDO from the board's 3.3 V (the mic's supply range is 1.52–3 V). Optional 0 Ω to take the Luckfox's mic bias (pad 2, 1.8 V) instead, if it can supply the mic's current; that would need a 4th wire.
-- **Output:** the IM73A135 has a **differential** output (Output+ and Output−, from its LCSC symbol). Each side goes through a coupling cap to the codec's MICP and MICN, so the pair rejects noise picked up on the wires.
-- **Pads:** MIC+, MIC−, AGND at the board edge, next to the camera pads but away from the 1.2 V buck. Twist the three wires to the Luckfox.
-- **Port hole:** the PCB needs a hole under the mic, covered with acoustic mesh or foam against wind and prop wash.
+**Plan A, analog mic (default):** Infineon IM73A135, 135 dB SPL overload point, IP57, bottom port, differential output.
+
+### Mic limits (IM73A135V01 datasheet, V1.20)
+
+| Item | Value | What it means for us |
+|---|---|---|
+| **Absolute max supply** | **3.0 V** | Never connect it to 3.3 V, not even on the bench |
+| Supply, normal mode | 2.3–3.0 V (typ. 2.75 V) | Full performance: 135 dB SPL overload, 73 dB SNR. **We use 2.8 V** |
+| Supply, low-power mode | 1.52–1.8 V | 130 dB overload. The mode is picked by the supply voltage. Nothing between 1.8 and 2.3 V is specified |
+| Current | 170 µA typ., 230 µA max (normal mode) | Any small LDO does it |
+| Supply ramp-up | reach final value within 5 ms | Fine for an LDO |
+| Start-up time | 10–30 ms | The recorder drops the first ~50 ms of audio |
+| Output DC level | 1.35 V on each output | Needs coupling caps: the codec inputs sit at their own bias |
+| Output impedance | 250 Ω | |
+| Output load | ≤ 100 pF per output and across; tested with 25 kΩ | No big filter caps on the outputs |
+| Sensitivity | −38 dBV at 94 dB SPL (±1 dB) | 1 kHz |
+| Output at 135 dB SPL | about 1.4 V rms differential (about 4 V peak-to-peak) | Probably more than the codec input takes at 0 dB gain (see below) |
+| Pins | 1 Output+, 2 VDD, 3 Output−, 4 GND, 5 GND (sound port ring) | Matches the LCSC symbol |
+
+**The Luckfox mic bias (pad 2, 1.8 V) can't power this mic:** 1.8 V is at the very top of low-power mode, and a little above it is unspecified. The 0 Ω option for it is removed; the mic always runs from our own 2.8 V LDO (U5). The ME6211C28 is ±2 %, so at most 2.86 V, under the 3.0 V limit.
+
+**Codec input level, unknown:** the RV1106 codec's mic input full scale and input impedance aren't in anything we have (the datasheet copy at LCSC didn't download). Its analog supply is 1.8 V, so a full-scale input of roughly 1 V rms differential or less is likely. At 120 dB SPL (prop noise) the mic gives about 0.25 V rms, which is fine; near 135 dB it would clip the codec first. So the board has an **attenuator option**: a series resistor on each line (0 Ω fitted) and a resistor across the pair (not fitted). The breadboard test sets the values.
+
+### Mic circuit (for the schematic)
+
+```
+3V3 ── U5 ME6211C28 (VIN, EN) ── 2V8_MIC                    1 µF on U5 in, 1 µF on U5 out
+2V8_MIC ── MK1 pin 2 (VDD), 100 nF at the pin
+MK1 pin 4, pin 5 ── GND (pin 5 is the ring around the sound port)
+MK1 pin 1 (Out+) ── C 1 µF ── R13 0 Ω ──┬── MIC_P pad ──► Luckfox pad 3 (MIC0_P)
+                                        R15 (not fitted, across the pair)
+MK1 pin 3 (Out−) ── C 1 µF ── R14 0 Ω ──┴── MIC_N pad ──► Luckfox pad 4 (MIC0_N)
+GND pad ──► Luckfox header pin 23
+```
+
+- **Coupling caps:** 1 µF X5R/X7R. The DC across them is small (1.35 V on the mic side, the codec's bias on the other), so microphonic pickup from vibration should be low; listen for it in the strapped-down motor test.
+- **Footprint:** the LCSC footprint (named after the IM69D130, same package) matches the IM73A135 drawing: pad positions, pin 1 and 0.75 × 0.45 mm pads. Its sound hole was 0.7 mm; it's changed to the datasheet's **0.8 mm** in `kicad/lib/lcsc.pretty` (redo this if the footprint is downloaded again).
+- **Pads:** MIC+, MIC−, GND at the board edge, next to the camera pads but away from the 1.2 V buck. Twist the three wires to the Luckfox.
+- **Port hole:** cover it with acoustic mesh or foam against wind and prop wash.
+
+### Bench test of the mic
+
+No separate mic breakout: the first decoder boards are the test boards. With pin headers in J3–J6 the board plugs into a breadboard.
+
+1. With 5 V on J3, measure VDD at the mic's 100 nF cap (C14): 2.74–2.86 V.
+2. Wire J6 to the Luckfox codec pads 3 and 4 and header pin 23, enable the codec in the Luckfox device tree and record with `arecord`.
+3. Levels: speech, then a speaker close to the mic, then motors on a strapped-down quad. If it clips at the codec's lowest gain, fit R15 (and resistors in place of R13/R14) to attenuate, and note the values for the next revision.
+4. Listen for vibration noise and for whine from the motors' ESCs on the wires.
 
 **Plan B, digital I2S mic:** only needed if a board doesn't bring out the codec mic pins (the Pro/Max does). The RV1106 has an I2S0 port (`I2S0_SCLK`, `I2S0_LRCK`, `I2S0_SDI0` on GPIO2_A0, A1 and A5 in the Ultra W schematic). An I2S MEMS mic needs 3 wires plus power, and its audio arrives already digital, so no analog noise pickup on the wires. The catch is overload: common I2S mics are around 120 dB SPL, below the IM73A135. Keep a footprint for one only if plan A is ruled out.
+
+## Schematic
+
+[`kicad/open-dvr-decoder.kicad_sch`](kicad/open-dvr-decoder.kicad_sch) (KiCad 10, project `open-dvr-decoder`). Version 0.1 was generated by [`kicad/tools/gen_schematic.py`](kicad/tools/gen_schematic.py), whose netlist table is the design in text form. Nets connect through labels; each block on the sheet has a title. From now on, edit the schematic in KiCad and don't rerun the generator (it would overwrite the edits).
+
+Checked with `kicad-cli` (2026-11-19):
+- **ERC:** no errors. 83 warnings, all "unspecified pin connected to passive pin": the LCSC symbols mark every pin as unspecified. Harmless.
+- **Netlist:** the exported netlist matches the generator's table exactly: 39 nets, 194 connected pins, and the 20 unused TP9950 pins marked no-connect.
+- **Part libraries:** `kicad/sym-lib-table` and `kicad/fp-lib-table` add the `lcsc` library from `kicad/lib/`. The FPC footprint's two mounting tabs were numbered `0`; they're now 21 and 22 to match its symbol.
+
+Not fitted (DNP): R7, R8 (I2C pull-ups, the Luckfox has them), R10 (VIO from 3.3 V), R11 (MCLK to XTI), R12 (Luckfox 3.3 V to our 3.3 V), R15 (mic attenuator).
 
 ## Layout
 

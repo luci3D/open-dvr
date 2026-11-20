@@ -5,6 +5,10 @@
 #
 # Run from anywhere:  powershell -ExecutionPolicy Bypass -File decoder-board\kicad\fetch_parts.ps1
 # Add -Overwrite to refresh parts that are already in the library.
+#
+# Two footprints were edited by hand after downloading; redo these after an -Overwrite:
+#   FPC-SMD_20P-P0.50_L5.9-W14.4: mounting tabs renumbered from 0 to 21 (x=-6.40) and 22 (x=+6.40)
+#   MIC-SMD_5P-...IM69D130V01: sound hole widened from 0.70 to 0.80 mm (IM73A135 datasheet)
 
 param([switch]$Overwrite)
 

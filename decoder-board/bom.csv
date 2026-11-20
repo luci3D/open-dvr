@@ -7,7 +7,7 @@ U3,1,Buck 2 A 1.5 MHz adjustable (1.2 V),SOT-23-5,C141836,TLV62569DBVR,extended,
 L1,1,Inductor 2.2 uH 1.1 A shielded,0806 (2016),C354533,CKCS201610-2.2uH/M,extended,0.041,yes,For U3
 R1-R2,2,Buck feedback divider 100 k 1%,0402,C25741,0402WGF1003TCE,basic,0.0009,yes,0.6 V x (1 + 100k/100k) = 1.2 V
 U4,1,LDO 1.8 V (VIO),SOT-23-5,C236671,ME6211C18M5G-N,extended,0.0658,yes,Luckfox camera I/O is 1.8 V
-U5,1,LDO 2.8 V for the mic,SOT-23-5,C53099,ME6211C28M5G-N,extended,0.0653,yes,
+U5,1,LDO 2.8 V for the mic,SOT-23-5,C53099,ME6211C28M5G-N,extended,0.0653,yes,Mic abs max is 3.0 V: never feed it 3.3 V
 FB1-FB4,4,Ferrite bead 120 ohm @ 100 MHz 2 A,0603,C14709,BLM18PG121SN1D,basic,0.014,yes,AVDD33 / AVDD12 / DVDD / camera 5 V
 D1,1,Video input ESD 0.6 pF,DFN1006-2,C316041,ESD9L5.0ST5G-N,extended,0.0257,yes,
 D2,1,TVS 5 V on the 5 V input,SOD-123FL,C193402,SMF5.0A,extended,0.0284,yes,
@@ -15,6 +15,8 @@ Q1,1,P-MOSFET reverse-polarity protection,SOT-23,C15127,AO3401A,basic,0.0814,yes
 F1,1,Polyfuse 500 mA hold 6 V (camera 5 V out),0805,C883108,BSMD0805-050-6V,extended,0.0496,yes,
 R3,1,Video termination 75 ohm 1%,0402,C25133,0402WGF750JTCE,extended,0.0012,yes,Behind JP1 (open by default)
 JP1,1,Termination solder jumper,PCB,,,,0,yes,Open by default
+J3-J6,4,2.54 mm through-holes (3+2+2+3),PCB,,,,0,no,Wires or pin headers soldered by the user
+H1-H2,2,M2 mounting holes,PCB,,,,0,yes,
 MK1,1,MEMS mic analog differential 135 dB SPL,LLGA-5 4x3,C3171831,IM73A135V01XTSA1,extended,3.3492,yes,Bottom port: hole in PCB
 J1,1,FPC 0.5 mm 20 P bottom contact flip-top,SMD P=0.5mm,C5362157,05A20L20P,extended,0.0711,yes,20 pins confirmed (Luckfox Pro/Max H1); Luckfox pin 1 lands on the right seen from above with the cable entering from the top (see README); check the insertion side on the drawing
 J2,1,Camera/power connector SH 1.0 mm 3 P right angle,SMD P=1mm,C3029342,WAFER-SH1.0-3PWB,extended,0.0925,yes,Same type as the COOAI board; solder pads in parallel
@@ -22,6 +24,7 @@ C3-C14,12,100 nF X7R,0402,C1525,CL05B104KO5NNNC,basic,0.0024,yes,8 decoder pins 
 C15-C24,10,1 uF X5R,0402,C52923,CL05A105KA5NQNC,basic,0.0057,yes,Analog rails + LDO in/out + 2 mic coupling
 C25-C27,3,10 uF X5R,0603,C19702,CL10A106KP8NNNC,basic,0.0233,yes,DVDD bulk + buck in/out
 C28-C30,3,22 uF X5R 25 V,0805,C45783,CL21A226MAQNNNE,basic,0.1084,yes,5 V input + camera out + buck out
-R4-R6,3,10 k 1%,0402,C25744,0402WGF1002TCE,basic,0.001,yes,RSTB pull-up + Q1 gate + spare
+R4-R5,2,10 k 1%,0402,C25744,0402WGF1002TCE,basic,0.001,yes,RSTB pull-up + Q1 gate
 R7-R8,2,4.7 k 1% (I2C pull-ups),0402,C25900,0402WGF4701TCE,basic,0.0017,no,Luckfox has its own pull-ups
-R9-R12,4,0 ohm jumpers,0402,C17168,0402WGF0000TCE,basic,0.0012,1 of 4,VIO select fitted; MCLK-XTI / MICBIAS / FPC 3V3 not fitted
+R9-R14,6,0 ohm jumpers,0402,C17168,0402WGF0000TCE,basic,0.0012,3 of 6,Fitted: R9 VIO from U4 + R13/R14 mic series. Not fitted: R10 VIO from 3.3 V / R11 MCLK-XTI / R12 FPC 3V3
+R15,1,Mic attenuator across the pair (value TBD),0402,C25744,0402WGF1002TCE,basic,0.001,no,Placeholder 10 k; value from the breadboard test

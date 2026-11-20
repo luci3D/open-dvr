@@ -19,7 +19,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | L1 | 1 | 2.2 µH, 1.1 A, shielded, 2016 | C354533 | CKCS201610-2.2uH/M | extended | 49 936 | 0.041 | For U3 (load about 150 mA) |
 | R1–R2 | 2 | 100 kΩ 1 % 0402 (buck feedback) | C25741 | 0402WGF1003TCE | basic | 10.4 M | 0.001 | 0.6 V × (1 + 100k/100k) = 1.2 V |
 | U4 | 1 | LDO 1.8 V, SOT-23-5 (VIO) | C236671 | ME6211C18M5G-N | extended | 39 878 | 0.066 | VIO: the Luckfox camera I/O is 1.8 V |
-| U5 | 1 | LDO 2.8 V, SOT-23-5 (mic supply) | C53099 | ME6211C28M5G-N | extended | 13 257 | 0.065 | |
+| U5 | 1 | LDO 2.8 V, SOT-23-5 (mic supply) | C53099 | ME6211C28M5G-N | extended | 13 257 | 0.065 | The mic's absolute max is 3.0 V: never feed it 3.3 V |
 | FB1–FB4 | 4 | Ferrite bead 120 Ω @ 100 MHz, 2 A, 0603 | C14709 | BLM18PG121SN1D | basic | 1.61 M | 0.014 | AVDD33, AVDD12, DVDD, camera 5 V |
 | D1 | 1 | ESD diode 0.6 pF, DFN1006-2 (video input) | C316041 | ESD9L5.0ST5G-N | extended | 300 102 | 0.026 | Low capacitance so it doesn't load the video line |
 | D2 | 1 | TVS 5 V, SOD-123FL (5 V input) | C193402 | SMF5.0A | extended | 456 037 | 0.028 | |
@@ -27,6 +27,8 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | F1 | 1 | Polyfuse 500 mA hold, 6 V, 0805 (camera 5 V out) | C883108 | BSMD0805-050-6V | extended | 39 411 | 0.050 | |
 | R3 | 1 | 75 Ω 1 % 0402 (video termination) | C25133 | 0402WGF750JTCE | extended | 1.04 M | 0.001 | Behind JP1, open by default |
 | JP1 | 1 | Solder jumper (termination) | — | — | PCB | — | — | |
+| J3–J6 | 4 | 2.54 mm through-holes (3 + 2 + 2 + 3) | — | — | PCB | — | — | Not assembled: wires or pin headers soldered by the user. See [Connectors](README.md#connectors) |
+| H1–H2 | 2 | M2 mounting holes | — | — | PCB | — | — | |
 | MK1 | 1 | MEMS mic, analog **differential**, 135 dB SPL, LLGA-5 4×3 | C3171831 | IM73A135V01XTSA1 | extended | 1 471 | 3.349 | Bottom port: hole in the PCB. Most expensive part after the decoder |
 | J1 | 1 | FPC 0.5 mm 20-pin, bottom contact, flip-top | C5362157 | 05A20L20P | extended | 4 083 | 0.071 | 20 pins confirmed from the Luckfox Pro/Max schematic. Pin order measured on the stock cable (see [README](README.md#host-connector-fpc)); check the insertion side on the drawing |
 | J2 | 1 | SH 1.0 mm 3-pin, right angle (Video / 5 V / GND) | C3029342 | WAFER-SH1.0-3PWB | extended | 31 515 | 0.093 | Same connector type as the COOAI board, so its cables fit. Solder pads in parallel |
@@ -34,9 +36,10 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | C15–C24 | 10 | 1 µF X5R 0402 | C52923 | CL05A105KA5NQNC | basic | 10.2 M | 0.006 | Analog rails, LDOs, 2 mic coupling |
 | C25–C27 | 3 | 10 µF X5R 0603 | C19702 | CL10A106KP8NNNC | basic | 11.6 M | 0.023 | DVDD bulk, buck in/out |
 | C28–C30 | 3 | 22 µF X5R 25 V 0805 | C45783 | CL21A226MAQNNNE | basic | 4.12 M | 0.108 | 5 V input, camera out, buck out |
-| R4–R6 | 3 | 10 kΩ 1 % 0402 | C25744 | 0402WGF1002TCE | basic | 21.1 M | 0.001 | RSTB pull-up, Q1 gate, spare |
+| R4–R5 | 2 | 10 kΩ 1 % 0402 | C25744 | 0402WGF1002TCE | basic | 21.1 M | 0.001 | RSTB pull-up, Q1 gate |
 | R7–R8 | 2 | 4.7 kΩ 1 % 0402 (I2C pull-ups) | C25900 | 0402WGF4701TCE | basic | 14.1 M | 0.002 | **Not fitted:** the Luckfox has its own |
-| R9–R12 | 4 | 0 Ω 0402 jumpers | C17168 | 0402WGF0000TCE | basic | 15.6 M | 0.001 | Only the VIO select is fitted; MCLK→XTI, MICBIAS and FPC 3.3 V are not |
+| R9–R14 | 6 | 0 Ω 0402 jumpers | C17168 | 0402WGF0000TCE | basic | 15.6 M | 0.001 | Fitted: R9 (VIO from U4), R13/R14 (mic series). Not fitted: R10 (VIO from 3.3 V), R11 (MCLK→XTI), R12 (FPC 3.3 V) |
+| R15 | 1 | Mic attenuator across the pair, 0402 | C25744 | 0402WGF1002TCE | basic | 21.1 M | 0.001 | **Not fitted**; 10 k is a placeholder, the breadboard test sets the value |
 
 ## Cost
 
@@ -63,5 +66,5 @@ Checked so far:
 - **Mic symbol:** pins are Output+, VDD, Output−, GND, GND, so the IM73A135 output is differential.
 
 To check before layout:
-- **Mic footprint:** EasyEDA's footprint is named after the IM69D130 (same 4×3 LLGA-5 package). Compare the pad layout and pin 1 with the IM73A135 datasheet.
+- ~~Mic footprint~~ **Done (2026-11-19):** EasyEDA's footprint (named after the IM69D130, same package) matches the IM73A135 drawing: pad positions, pin 1 and pad sizes. Its sound hole was 0.7 mm and is now the datasheet's 0.8 mm.
 - **Every footprint against its datasheet,** as usual for imported parts: pad size, pin 1 and the exposed pad of the QFN.
