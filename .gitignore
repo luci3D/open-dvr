@@ -25,3 +25,6 @@ decoder-board/kicad/*.kicad_prl
 decoder-board/kicad/*-backups/
 decoder-board/kicad/fp-info-cache
 decoder-board/kicad/*.lck
+
+# Python caches
+__pycache__/
