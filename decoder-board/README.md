@@ -2,26 +2,38 @@
 
 A small board that turns an analog FPV camera signal (CVBS) into MIPI CSI-2 for a Luckfox Pico, and carries the DVR's microphone. Plugged into a Luckfox Pico Pro/Max with the camera ribbon cable and a few wires, it makes a complete DVR module. It is **our first piece of hardware and the DIY kit board** (decided 2026-11-19): video decoder and mic, on a separate board connected by cable. The IMU stays a separate breakout for later ([roadmap phase 4](../ROADMAP.md#phase-4-imu-breakout)).
 
-Status: **schematic v0.1, 2026-11-19** ([`kicad/`](kicad/), see [Schematic](#schematic)). Next: PCB layout.
+Status: **schematic v0.1 and PCB placement v0.1, 2026-11-19** ([`kicad/`](kicad/), see [Schematic](#schematic) and [PCB](#pcb)). Next: routing.
 
 ```
 FC video line ──(parallel tap)──► J2/J3 ──► input network ──► TP9950 ──MIPI 2 lanes + I2C──► J1 FPC ──► Luckfox camera connector
-FC 5 V ──► J2/J3 ──► reverse-polarity FET ──► 5 V ──► 3.3 V LDO, 1.2 V buck, J4 camera 5 V out, J5 5 V to Luckfox VSYS
-MEMS mic ──► J6 ──(3 short wires)──► Luckfox codec pads 3/4 + GND
+FC 5 V ──► J2/J3 ──► reverse-polarity FET ──► 5 V ──► 3.3 V LDO, 1.2 V buck, camera 5 V out (J3), 5 V to Luckfox VSYS (J3)
+MEMS mic ──► J3 ──(3 short wires)──► Luckfox codec pads 3/4 + GND
 ```
 
 ## Connectors
 
 | Ref | Type | Pins | Goes to |
 |---|---|---|---|
-| J1 | FPC 0.5 mm 20-pin, bottom contact (JLC-assembled) | Luckfox camera pinout, pin n = Luckfox pin n | Luckfox camera connector, stock opposite-side cable |
+| J1 | FPC 0.5 mm 20-pin, **top contact** (05B20U20P, JLC-assembled) | Luckfox camera pinout, pin n = Luckfox pin n | Luckfox camera connector, stock opposite-side cable |
 | J2 | SH 1.0 mm 3-pin (JLC-assembled) | 1 Video, 2 5 V in, 3 GND | The FC: camera video line (parallel tap) and 5 V; same harness as the COOAI DVR |
-| J3 | 2.54 mm holes ×3 | 1 Video, 2 5 V in, 3 GND | Same as J2, for soldered wires or pin headers |
-| J4 | 2.54 mm holes ×2 | 1 Camera 5 V (polyfuse), 2 GND | Powers a camera on the bench |
-| J5 | 2.54 mm holes ×2 | 1 5 V, 2 GND | Luckfox **VSYS (header pin 39)** and GND: one 5 V feed from the FC powers both boards. VSYS is the Luckfox's 5 V system rail; its USB-C input reaches it through a Schottky diode, so USB can stay plugged in |
-| J6 | 2.54 mm holes ×3 | 1 MIC+, 2 MIC−, 3 GND | Luckfox codec pad 3 (MIC0+), pad 4 (MIC0−), header pin 23 (GND) |
+| J3 | One row of 10 holes, 2.54 mm, along the bottom edge (not assembled) | see below | Wires, or a 10-pin header for a breadboard |
 
-The 2.54 mm holes take wires for a quad, or pin headers so the board plugs into a breadboard for bench tests.
+J3, labelled on the silkscreen, left to right:
+
+| Pin | Label | Net | Goes to |
+|---|---|---|---|
+| 1 | VID | Video in | Same as J2 pin 1 |
+| 2 | 5Vin | 5 V in | Same as J2 pin 2 |
+| 3 | GND | GND | |
+| 4 | CAM | Camera 5 V out, through the polyfuse | A camera on the bench |
+| 5 | GND | GND | |
+| 6 | VSYS | 5 V out | Luckfox **VSYS (header pin 39)**: one 5 V feed from the FC powers both boards. VSYS is the Luckfox's 5 V system rail; its USB-C input reaches it through a Schottky diode, so USB can stay plugged in |
+| 7 | GND | GND | |
+| 8 | M+ | Mic + | Luckfox codec pad 3 (MIC0+) |
+| 9 | M− | Mic − | Luckfox codec pad 4 (MIC0−) |
+| 10 | GND | GND | Luckfox header pin 23 (mic ground) |
+
+The schematic first had four separate hole groups (J3–J6). They didn't fit across the board edge, so they became one 10-hole row, which is also easier for a breadboard.
 
 ## Chip: TP9950 instead of TP2850
 
@@ -150,13 +162,11 @@ From the Luckfox Pico Pro/Max schematic, connector `H1` (`CAM`), **0.5 mm, 20 pi
 - The stock Luckfox camera cable (0.5 mm, 20 conductors) has its contacts on **opposite faces** at its two ends.
 - At the free end, looking at the contacts with the cable's tip pointing toward you (the cable running away from you to the Luckfox): **pins 19–20 (3.3 V) are on the right**, so pin 1 is on the left.
 
-**What that means for J1** (bottom-contact connector on the top side of our board): the cable's contacts face down into it. Seen from above, with the cable coming in from the top edge of the board, **Luckfox pin 1 lands on the right** and pin 20 on the left.
-
-**Footprint mapping:** in our J1 footprint, pad 1 is at the left end of the pad row (the triangle marks it). Which J1 pad gets which Luckfox pin depends on which side of the connector the cable goes in:
-- cable enters on the side **opposite** the pads: rotate the footprint so the entry faces the cable, pad 1 ends up on the right → **straight** (J1 pad n = Luckfox pin n);
-- cable enters on the **pad side**: pad 1 stays on the left → **reversed** (J1 pad n = Luckfox pin 21 − n).
-
-Check the insertion side on the 05A20L20P drawing before naming the J1 nets in the schematic.
+**J1 is a top-contact connector** (HanElectricity 05B20U20P, LCSC C22435648), changed from the bottom-contact 05A20L20P during layout (2026-11-19):
+- **Cable fit:** a top-contact connector takes the cable the way it naturally lies, contacts facing up. The bottom-contact part needed the cable turned over.
+- **MIPI polarity:** with a top-contact J1, seen from above with the cable coming in from the top edge, **Luckfox pin 1 lands on the left**, and every MIPI pair's + and − line up with the TP9950's pins. With the bottom-contact part, all three pairs came out reversed.
+- **Mapping:** the cable enters opposite the solder leads (drawing and product photo). With the footprint turned 180° so the entry faces the board edge, pad 1 is on the left, so **J1 pad n = Luckfox pin n**.
+- **Not double-sided:** some "double-sided contact" parts accept the cable either way up; upside down, that would short the Luckfox's 3.3 V to GND. A single-sided part avoids that.
 
 **Spare cables** must also be **opposite-side** (sometimes sold as "Type B" or "reverse"), 0.5 mm, 20 conductors. A same-side cable mirrors the pin order and won't work with this layout.
 
@@ -236,10 +246,10 @@ GND pad ──► Luckfox header pin 23
 
 ### Bench test of the mic
 
-No separate mic breakout: the first decoder boards are the test boards. With pin headers in J3–J6 the board plugs into a breadboard.
+No separate mic breakout: the first decoder boards are the test boards. With a 10-pin header in J3 the board plugs into a breadboard.
 
-1. With 5 V on J3, measure VDD at the mic's 100 nF cap (C14): 2.74–2.86 V.
-2. Wire J6 to the Luckfox codec pads 3 and 4 and header pin 23, enable the codec in the Luckfox device tree and record with `arecord`.
+1. With 5 V on J3 pin 2, measure VDD at the mic's 100 nF cap (C14): 2.74–2.86 V.
+2. Wire J3 pins 8, 9 and 10 (M+, M−, GND) to the Luckfox codec pads 3 and 4 and header pin 23, enable the codec in the Luckfox device tree and record with `arecord`.
 3. Levels: speech, then a speaker close to the mic, then motors on a strapped-down quad. If it clips at the codec's lowest gain, fit R15 (and resistors in place of R13/R14) to attenuate, and note the values for the next revision.
 4. Listen for vibration noise and for whine from the motors' ESCs on the wires.
 
@@ -255,6 +265,48 @@ Checked with `kicad-cli` (2026-11-19):
 - **Part libraries:** `kicad/sym-lib-table` and `kicad/fp-lib-table` add the `lcsc` library from `kicad/lib/`. The FPC footprint's two mounting tabs were numbered `0`; they're now 21 and 22 to match its symbol.
 
 Not fitted (DNP): R7, R8 (I2C pull-ups, the Luckfox has them), R10 (VIO from 3.3 V), R11 (MCLK to XTI), R12 (Luckfox 3.3 V to our 3.3 V), R15 (mic attenuator).
+
+## PCB
+
+[`kicad/open-dvr-decoder.kicad_pcb`](kicad/open-dvr-decoder.kicad_pcb), placement v0.1 (2026-11-19), made by [`kicad/tools/gen_pcb.py`](kicad/tools/gen_pcb.py) from the schematic's netlist. Nothing is routed yet. From now on, edit the board in KiCad; rerunning the script would overwrite it.
+
+**Board:**
+- 28 × 38 mm, 4 layers, 1.6 mm (JLC standard): F.Cu signals, **In1 GND plane**, **In2 GND plane**, B.Cu signals. Two M2 holes in the top corners.
+- J1 on the top edge (the cable enters from the edge); the TP9950 right below it with its MIPI side facing J1; crystal to its left; decoupling around it.
+- Left: J2 and the video input (ESD diode, 75 Ω + JP1), and the 5 V input protection (Q1, D2, C28).
+- Right: the 1.2 V buck and its inductor, away from the video input and the mic. Middle: the 3.3 V and 1.8 V LDOs.
+- Bottom right: the mic with its LDO and coupling caps, as far from the buck as the board allows.
+- Bottom edge: J3, one row of 10 labelled holes. The project name and version are on the back silkscreen.
+
+**Rules and net classes** (in the project file):
+
+| Class | Nets | Track | Clearance | Diff pair |
+|---|---|---|---|---|
+| Default | everything else | 0.15 mm | 0.15 mm | |
+| Power | VIN_RAW, 5V, CAM_5V*, SW_1V2, 1V2, DVDD, 3V3 | 0.4 mm | 0.2 mm | |
+| MIPI | MIPI_* | 0.2 mm | 0.15 mm | 0.2 mm wide, 0.15 mm gap |
+| Analog | VIDEO_IN, VIN1P/N, TERM, MIC_* | 0.2 mm | 0.2 mm | |
+
+Board minimums (JLC 4-layer): 0.1 mm track and clearance, vias 0.5/0.3 mm, 0.3 mm copper to edge. The MIPI pair size gives about 100 Ω by hand calculation over JLC's 0.21 mm 7628 prepreg; check it in JLC's impedance calculator before ordering. At these data rates and lengths (under 10 mm) it isn't critical.
+
+**Footprint fixes made during placement:**
+- **Courtyards:** every footprint downloaded from EasyEDA had a courtyard covering only the body, so pads could overlap without DRC noticing. All 12 now cover body + pads + 0.25 mm.
+- **Mic sound hole:** now a plated 0.8 mm hole tied to GND inside the mic's ground ring (it was a plated hole with no copper ring).
+
+**Checked with `kicad-cli` (zones refilled):**
+- **DRC: no errors.** Two warnings, both pin-1 dots in downloaded footprints drawn over their own pads (JLC clips silkscreen off pads).
+- **Schematic parity: clean.** Every footprint links to its symbol, with matching values, LCSC fields and BOM flags.
+- **151 unconnected items:** the ratsnest. Routing is the next step.
+
+**Routing plan:**
+1. **MIPI:** lane 0 and the clock go straight up to J1 on F.Cu as 0.2/0.15 mm pairs; match lengths within each pair. **Lane 1 has to cross the other two:** the TP9950's pin order is clock, lane 0, lane 1, the Luckfox connector's is lane 0, clock, lane 1. Route lane 1 on B.Cu with a via pair at each end (In2 is GND, so it keeps a reference plane). The TP9950 has no register to swap lanes or invert polarity, so this crossing is needed.
+2. **Video:** J2/J3 → D1 (ESD, right at the connector) → R3/JP1 → C12 → pin 7, short, over the GND plane and away from the buck. C13's GND side goes back to the connector ground (pseudo-differential input).
+3. **Crystal:** short traces to pins 36/37, GND around them, no other signals underneath.
+4. **Buck:** keep the C25 → U3 → L1 → C26/C30 loop tight and SW_1V2 as short as possible.
+5. **Decoupling:** each cap straight to its pin, with a GND via at the cap's ground pad.
+6. **Power:** 0.4 mm traces for 5 V and 1.2 V, with vias to other layers where needed.
+7. **Mic:** MIC_P and MIC_N side by side from C22/C23 through R13/R14 to J3 pins 8/9.
+8. **I2C and reset:** up the right side of the TP9950 to J1 pins 13, 14 and 16.
 
 ## Layout
 

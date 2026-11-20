@@ -37,6 +37,7 @@ FP_C0805 = 'Capacitor_SMD:C_0805_2012Metric'
 FP_SH3 = 'Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal'
 FP_HDR2 = 'Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical'
 FP_HDR3 = 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical'
+FP_HDR10 = 'Connector_PinHeader_2.54mm:PinHeader_1x10_P2.54mm_Vertical'
 FP_SJ = 'Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm'
 FP_HOLE = 'MountingHole:MountingHole_2.2mm_M2'
 
@@ -71,6 +72,7 @@ def part(ref, lib, value, lcsc, x, y, pins, fp=None, rot=0, dnp=False):
 
 
 NC = None
+NOT_IN_BOM = {'J3', 'JP1', 'H1', 'H2'}   # PCB-only: holes, solder jumper, unassembled header row
 P = []      # parts
 T = []      # block titles: (text, x, y)
 
@@ -81,23 +83,21 @@ T.append(('POWER INPUT (5 V from the FC) AND OUTPUTS', bx, by))
 P += [
     part('J2', 'Connector_Generic:Conn_01x03', 'SH1.0 Video/5V/GND', 'C3029342', bx + 10, by + 15,
          {'1': 'VIDEO_IN', '2': 'VIN_RAW', '3': 'GND'}, fp=FP_SH3),
-    part('J3', 'Connector_Generic:Conn_01x03', 'Pads Video/5V/GND', '', bx + 10, by + 35,
-         {'1': 'VIDEO_IN', '2': 'VIN_RAW', '3': 'GND'}, fp=FP_HDR3),
+    # J3: one row of 10 holes on the bottom edge for wires or a pin header (breadboard)
+    part('J3', 'Connector_Generic:Conn_01x10', 'Wire/header row', '', bx + 10, by + 50,
+         {'1': 'VIDEO_IN', '2': 'VIN_RAW', '3': 'GND', '4': 'CAM_5V', '5': 'GND',
+          '6': '5V', '7': 'GND', '8': 'MIC_P', '9': 'MIC_N', '10': 'GND'}, fp=FP_HDR10),
     part('Q1', 'lcsc:AO3401A', 'AO3401A', 'C15127', bx + 50, by + 15,
          {'3': 'VIN_RAW', '2': '5V', '1': 'Q1_G'}),
     res('R5', R10K, 'Q1_G', 'GND', bx + 50, by + 32),
     part('D2', 'lcsc:SMF5.0A_C193402', 'SMF5.0A', 'C193402', bx + 90, by + 15,
          {'1': '5V', '2': 'GND'}),
     cap('C28', C22U, '5V', 'GND', bx + 90, by + 32),
-    part('J5', 'Connector_Generic:Conn_01x02', '5V to Luckfox VSYS', '', bx + 130, by + 15,
-         {'1': '5V', '2': 'GND'}, fp=FP_HDR2),
     part('F1', 'lcsc:BSMD0805-050-6V', 'BSMD0805-050-6V', 'C883108', bx + 50, by + 50,
          {'1': '5V', '2': 'CAM_5V_F'}),
     part('FB4', 'lcsc:BLM18PG121SN1D_C14709', 'BLM18PG121SN1D', 'C14709', bx + 90, by + 50,
          {'1': 'CAM_5V_F', '2': 'CAM_5V'}),
     cap('C29', C22U, 'CAM_5V', 'GND', bx + 90, by + 65),
-    part('J4', 'Connector_Generic:Conn_01x02', 'Camera 5V out', '', bx + 130, by + 50,
-         {'1': 'CAM_5V', '2': 'GND'}, fp=FP_HDR2),
 ]
 
 # ---------------------------------------------------------------------------------------
@@ -188,7 +188,7 @@ P += [
 # ---------------------------------------------------------------------------------------
 # 5. Host connector (Luckfox camera FPC, pin n = Luckfox H1 pin n)
 bx, by = 420, 30
-T.append(('LUCKFOX CAMERA FPC (J1 pin n = Luckfox H1 pin n, opposite-side cable)', bx, by))
+T.append(('LUCKFOX CAMERA FPC (top contact; J1 pin n = Luckfox H1 pin n, stock opposite-side cable)', bx, by))
 j1 = {
     '1': 'GND', '2': 'MCLK', '3': 'GND', '4': 'MIPI_D0P', '5': 'MIPI_D0N', '6': 'GND',
     '7': 'MIPI_CKP', '8': 'MIPI_CKN', '9': 'GND', '10': 'MIPI_D1P', '11': 'MIPI_D1N',
@@ -196,7 +196,7 @@ j1 = {
     '18': 'GND', '19': 'LF_3V3', '20': 'LF_3V3', '21': 'GND', '22': 'GND',
 }
 P += [
-    part('J1', 'lcsc:05A20L20P', 'FPC 0.5mm 20P', 'C5362157', bx + 30, by + 50, j1),
+    part('J1', 'lcsc:05B20U20P', 'FPC 0.5mm 20P top contact', 'C22435648', bx + 30, by + 50, j1),
     res('R12', R0, 'LF_3V3', '3V3', bx + 80, by + 20, dnp=True),
 ]
 
@@ -217,8 +217,6 @@ P += [
     res('R13', R0, 'MIC_P_C', 'MIC_P', bx + 100, by + 58),
     res('R14', R0, 'MIC_N_C', 'MIC_N', bx + 100, by + 70),
     res('R15', R10K, 'MIC_P', 'MIC_N', bx + 100, by + 84, dnp=True),
-    part('J6', 'Connector_Generic:Conn_01x03', 'Mic to Luckfox pads 3/4 + GND', '', bx + 140, by + 60,
-         {'1': 'MIC_P', '2': 'MIC_N', '3': 'GND'}, fp=FP_HDR3),
 ]
 
 # ---------------------------------------------------------------------------------------
@@ -372,8 +370,9 @@ def main():
             props[0] = ('Reference', ref, (x0, y0 - 2.54 - max(-xform(*v[:2], rot)[1] for v in pins.values())), False)
             props[1] = ('Value', p['value'], (x0, y0 + 2.54 + max(xform(*v[:2], rot)[1] for v in pins.values())), False)
         w('\t(symbol\n\t\t(lib_id "%s")\n\t\t(at %.2f %.2f %d)\n\t\t(unit 1)\n\t\t(exclude_from_sim no)\n'
-          '\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp %s)\n\t\t(uuid "%s")\n'
-          % (lid, x0, y0, rot, 'yes' if p['dnp'] else 'no', U()))
+          '\t\t(in_bom %s)\n\t\t(on_board yes)\n\t\t(dnp %s)\n\t\t(uuid "%s")\n'
+          % (lid, x0, y0, rot, 'no' if p['ref'] in NOT_IN_BOM else 'yes',
+             'yes' if p['dnp'] else 'no', U()))
         for k, v, (px, py), hide in props:
             w('\t\t(property "%s" "%s"\n\t\t\t(at %.2f %.2f %d)\n%s\t\t\t(effects\n\t\t\t\t(font\n'
               '\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n'

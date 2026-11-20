@@ -15,10 +15,10 @@ Q1,1,P-MOSFET reverse-polarity protection,SOT-23,C15127,AO3401A,basic,0.0814,yes
 F1,1,Polyfuse 500 mA hold 6 V (camera 5 V out),0805,C883108,BSMD0805-050-6V,extended,0.0496,yes,
 R3,1,Video termination 75 ohm 1%,0402,C25133,0402WGF750JTCE,extended,0.0012,yes,Behind JP1 (open by default)
 JP1,1,Termination solder jumper,PCB,,,,0,yes,Open by default
-J3-J6,4,2.54 mm through-holes (3+2+2+3),PCB,,,,0,no,Wires or pin headers soldered by the user
+J3,1,Row of 10 x 2.54 mm through-holes,PCB,,,,0,no,Wires or a 10-pin header soldered by the user
 H1-H2,2,M2 mounting holes,PCB,,,,0,yes,
 MK1,1,MEMS mic analog differential 135 dB SPL,LLGA-5 4x3,C3171831,IM73A135V01XTSA1,extended,3.3492,yes,Bottom port: hole in PCB
-J1,1,FPC 0.5 mm 20 P bottom contact flip-top,SMD P=0.5mm,C5362157,05A20L20P,extended,0.0711,yes,20 pins confirmed (Luckfox Pro/Max H1); Luckfox pin 1 lands on the right seen from above with the cable entering from the top (see README); check the insertion side on the drawing
+J1,1,FPC 0.5 mm 20 P top contact slide lock,SMD P=0.5mm,C22435648,05B20U20P,extended,0.071,yes,20 pins confirmed (Luckfox Pro/Max H1); Luckfox pin 1 lands on the right seen from above with the cable entering from the top (see README); check the insertion side on the drawing
 J2,1,Camera/power connector SH 1.0 mm 3 P right angle,SMD P=1mm,C3029342,WAFER-SH1.0-3PWB,extended,0.0925,yes,Same type as the COOAI board; solder pads in parallel
 C3-C14,12,100 nF X7R,0402,C1525,CL05B104KO5NNNC,basic,0.0024,yes,8 decoder pins + RSTB + 2 video coupling + mic
 C15-C24,10,1 uF X5R,0402,C52923,CL05A105KA5NQNC,basic,0.0057,yes,Analog rails + LDO in/out + 2 mic coupling

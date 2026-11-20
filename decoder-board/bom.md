@@ -27,10 +27,10 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | F1 | 1 | Polyfuse 500 mA hold, 6 V, 0805 (camera 5 V out) | C883108 | BSMD0805-050-6V | extended | 39 411 | 0.050 | |
 | R3 | 1 | 75 Ω 1 % 0402 (video termination) | C25133 | 0402WGF750JTCE | extended | 1.04 M | 0.001 | Behind JP1, open by default |
 | JP1 | 1 | Solder jumper (termination) | — | — | PCB | — | — | |
-| J3–J6 | 4 | 2.54 mm through-holes (3 + 2 + 2 + 3) | — | — | PCB | — | — | Not assembled: wires or pin headers soldered by the user. See [Connectors](README.md#connectors) |
+| J3 | 1 | Row of 10 × 2.54 mm through-holes | — | — | PCB | — | — | Not assembled: wires or a 10-pin header soldered by the user. See [Connectors](README.md#connectors) |
 | H1–H2 | 2 | M2 mounting holes | — | — | PCB | — | — | |
 | MK1 | 1 | MEMS mic, analog **differential**, 135 dB SPL, LLGA-5 4×3 | C3171831 | IM73A135V01XTSA1 | extended | 1 471 | 3.349 | Bottom port: hole in the PCB. Most expensive part after the decoder |
-| J1 | 1 | FPC 0.5 mm 20-pin, bottom contact, flip-top | C5362157 | 05A20L20P | extended | 4 083 | 0.071 | 20 pins confirmed from the Luckfox Pro/Max schematic. Pin order measured on the stock cable (see [README](README.md#host-connector-fpc)); check the insertion side on the drawing |
+| J1 | 1 | FPC 0.5 mm 20-pin, **top contact**, slide lock | C22435648 | 05B20U20P | extended | 695 | 0.071 | 20 pins confirmed from the Luckfox Pro/Max schematic. Pin order measured on the stock cable (see [README](README.md#host-connector-fpc)); check the insertion side on the drawing |
 | J2 | 1 | SH 1.0 mm 3-pin, right angle (Video / 5 V / GND) | C3029342 | WAFER-SH1.0-3PWB | extended | 31 515 | 0.093 | Same connector type as the COOAI board, so its cables fit. Solder pads in parallel |
 | C3–C14 | 12 | 100 nF X7R 0402 | C1525 | CL05B104KO5NNNC | basic | 38.1 M | 0.002 | 8 decoder pins, RSTB, 2 video coupling, mic |
 | C15–C24 | 10 | 1 µF X5R 0402 | C52923 | CL05A105KA5NQNC | basic | 10.2 M | 0.006 | Analog rails, LDOs, 2 mic coupling |

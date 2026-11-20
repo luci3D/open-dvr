@@ -6,9 +6,10 @@
 # Run from anywhere:  powershell -ExecutionPolicy Bypass -File decoder-board\kicad\fetch_parts.ps1
 # Add -Overwrite to refresh parts that are already in the library.
 #
-# Two footprints were edited by hand after downloading; redo these after an -Overwrite:
-#   FPC-SMD_20P-P0.50_L5.9-W14.4: mounting tabs renumbered from 0 to 21 (x=-6.40) and 22 (x=+6.40)
-#   MIC-SMD_5P-...IM69D130V01: sound hole widened from 0.70 to 0.80 mm (IM73A135 datasheet)
+# Footprints were edited after downloading; redo these after an -Overwrite:
+#   all: courtyards rebuilt to cover body + pads + 0.25 mm (EasyEDA's covered the body only)
+#   MIC-SMD_5P-...IM69D130V01: sound hole is a plated 0.80 mm hole numbered 5 (GND), inside the
+#   ground ring (IM73A135 datasheet: 0.8 mm port)
 
 param([switch]$Overwrite)
 
@@ -26,7 +27,7 @@ $parts = @(
     'C15127',    # Q1  AO3401A P-MOSFET
     'C883108',   # F1  BSMD0805-050-6V polyfuse
     'C3171831',  # MK1 IM73A135V01XTSA1 MEMS mic
-    'C5362157'   # J1  FPC 0.5 mm 20 P (pin count to confirm)
+    'C22435648'  # J1  05B20U20P FPC 0.5 mm 20 P, top contact
 )
 # J2 (SH 1.0 mm 3 P, C3029342) uses KiCad's built-in footprint
 # Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal; EasyEDA returned 403 for it.
