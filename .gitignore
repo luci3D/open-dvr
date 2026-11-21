@@ -8,7 +8,24 @@
 !/dvr-recorder/
 !/dvr-probe/
 !/imu-probe/
+!/decoder-board/
 
 # Test recordings and build output stay local (clips are hundreds of MB)
 results/
 build/
+
+# Release zips are built by scripts/make_release.py and published as GitHub releases
+dist/
+
+# KiCad 3D models fetched by decoder-board/kicad/fetch_parts.ps1 (large, regenerable)
+decoder-board/kicad/lib/lcsc.3dshapes/
+
+# KiCad per-user and generated files
+decoder-board/kicad/*.kicad_prl
+decoder-board/kicad/*-backups/
+decoder-board/kicad/fp-info-cache
+decoder-board/kicad/*.lck
+
+# Python caches
+__pycache__/
+decoder-board/kicad/.history/

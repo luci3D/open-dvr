@@ -1,0 +1,3 @@
+MaxBitRate = 20
+FileIntervalTime = 5
+UserOsd =

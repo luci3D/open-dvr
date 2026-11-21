@@ -1,0 +1,29 @@
+Ref,Qty,Description,Package,LCSC,MPN,JLC type,Unit USD,Fitted,Note
+U1,1,Video decoder CVBS/AHD to MIPI CSI-2,QFN-40 5x5 EP3.7,C2852602,TP9950,consigned,2.00,yes,Est. price; 0 stock at JLC: buy elsewhere and ship to JLC
+Y1,1,Crystal 27 MHz 20 pF +-20 ppm 50 ohm,SMD3225-4P,C9008,X322527MSB4SI,extended,0.1093,yes,
+C1-C2,2,Crystal load cap 33 pF C0G,0402,C1562,0402CG330J500NT,basic,0.0024,yes,Tune after first boards
+U2,1,LDO 3.3 V 500 mA low noise (AVDD33 + VIO),SOT-23-5,C82942,ME6211C33M5G-N,extended,0.0624,yes,50 uVrms
+U3,1,Buck 2 A 1.5 MHz adjustable (1.2 V),SOT-23-5,C141836,TLV62569DBVR,extended,0.0675,yes,2.5-5.5 V in
+L1,1,Inductor 2.2 uH 1.1 A shielded,0806 (2016),C354533,CKCS201610-2.2uH/M,extended,0.041,yes,For U3
+R1-R2,2,Buck feedback divider 100 k 1%,0402,C25741,0402WGF1003TCE,basic,0.0009,yes,0.6 V x (1 + 100k/100k) = 1.2 V
+U4,1,LDO 1.8 V (VIO),SOT-23-5,C236671,ME6211C18M5G-N,extended,0.0658,yes,Luckfox camera I/O is 1.8 V
+U5,1,LDO 2.8 V for the mic,SOT-23-5,C53099,ME6211C28M5G-N,extended,0.0653,yes,Mic abs max is 3.0 V: never feed it 3.3 V
+FB1-FB4,4,Ferrite bead 120 ohm @ 100 MHz 2 A,0603,C14709,BLM18PG121SN1D,basic,0.014,yes,AVDD33 / AVDD12 / DVDD / camera 5 V
+D1,1,Video input ESD 0.6 pF,DFN1006-2,C316041,ESD9L5.0ST5G-N,extended,0.0257,yes,
+D2,1,TVS 5 V on the 5 V input,SOD-123FL,C193402,SMF5.0A,extended,0.0284,yes,
+Q1,1,P-MOSFET reverse-polarity protection,SOT-23,C15127,AO3401A,basic,0.0814,yes,
+F1,1,Polyfuse 500 mA hold 6 V (camera 5 V out),0805,C883108,BSMD0805-050-6V,extended,0.0496,yes,
+R3,1,Video termination 75 ohm 1%,0402,C25133,0402WGF750JTCE,extended,0.0012,yes,Behind JP1 (open by default)
+JP1,1,Termination solder jumper,PCB,,,,0,yes,Open by default
+J3,1,Row of 10 x 2.54 mm through-holes,PCB,,,,0,no,Wires or a 10-pin header soldered by the user
+H1-H2,2,M2 mounting holes,PCB,,,,0,yes,
+MK1,1,MEMS mic analog differential 135 dB SPL,LLGA-5 4x3,C3171831,IM73A135V01XTSA1,extended,3.3492,yes,Bottom port: hole in PCB
+J1,1,FPC 0.5 mm 20 P top contact slide lock,SMD P=0.5mm,C22435648,05B20U20P,extended,0.071,yes,20 pins confirmed (Luckfox Pro/Max H1); Luckfox pin 1 lands on the right seen from above with the cable entering from the top (see README); check the insertion side on the drawing
+J2,1,Camera/power connector SH 1.0 mm 3 P right angle,SMD P=1mm,C3029342,WAFER-SH1.0-3PWB,extended,0.0925,yes,Same type as the COOAI board; solder pads in parallel
+C3-C14,12,100 nF X7R,0402,C1525,CL05B104KO5NNNC,basic,0.0024,yes,8 decoder pins + RSTB + 2 video coupling + mic
+C15-C24,10,1 uF X5R,0402,C52923,CL05A105KA5NQNC,basic,0.0057,yes,Analog rails + LDO in/out + 2 mic coupling
+C25-C27,3,10 uF X5R,0603,C19702,CL10A106KP8NNNC,basic,0.0233,yes,DVDD bulk + buck in/out
+C28-C30,3,22 uF X5R 25 V,0805,C45783,CL21A226MAQNNNE,basic,0.1084,yes,5 V input + camera out + buck out
+R4-R5,2,10 k 1%,0402,C25744,0402WGF1002TCE,basic,0.001,yes,RSTB pull-up + Q1 gate
+R9-R14,6,0 ohm jumpers,0402,C17168,0402WGF0000TCE,basic,0.0012,3 of 6,Fitted: R9 VIO from U4 + R13/R14 mic series. Not fitted: R10 VIO from 3.3 V / R11 MCLK-XTI / R12 FPC 3V3
+R15,1,Mic attenuator across the pair (value TBD),0402,C25744,0402WGF1002TCE,basic,0.001,no,Placeholder 10 k; value from the breadboard test

@@ -1,0 +1,42 @@
+OPEN DVR: LICENCES AND NOTICES
+==============================
+
+Open DVR itself
+---------------
+dvr/dvrrec, dvr/start.sh, dvr/gpio.txt and encrypt are part of Open DVR,
+released under the GNU General Public License version 3 (GPL-3.0.txt in this
+folder). There is NO WARRANTY, to the extent permitted by law.
+
+Source code for this release (tag v0.9):
+https://github.com/luci3D/open-dvr
+
+
+Parts from other projects
+-------------------------
+OpenIPC openhisilicon SDK headers
+    dvrrec is compiled against these media API definitions.
+    GPL-3.0. https://github.com/OpenIPC/openhisilicon
+
+shine MP3 encoder (built into dvrrec)
+    Fixed-point MP3 encoder, taken from the copy in OpenIPC Divinus, with two
+    fixes of ours (third_party/shine/SOURCE.txt in the source code).
+    GNU Library General Public License version 2 (LGPL-2.0.txt in this
+    folder). Upstream: https://github.com/savonet/shine
+    The complete source of dvrrec, including this modified shine, is in the
+    repository above, so the program can be rebuilt with a changed shine.
+
+Goke media libraries (dvr/lib/*.so)
+    libgk_api.so, libsecurec.so, libupvqe.so, libdnvqe.so and
+    libvoice_engine.so are the chip maker's binary libraries for the
+    GK7205V200 family, taken unchanged from the OpenIPC firmware repository
+    (package goke-osdrv-gk7205v200). They are not open source; OpenIPC
+    redistributes them. https://github.com/OpenIPC/firmware
+
+Rockchip techpoint TP9950 driver (Linux kernel, GPL-2.0)
+    Reference for the TP2850 video decoder's setup sequence.
+
+
+Thanks
+------
+To the OpenIPC project (https://openipc.org) and its contributors.
+Open DVR is not affiliated with OpenIPC or with the board's maker.

@@ -1,0 +1,27 @@
+group,ref,part,example_pn,qty,unit_usd,line_usd,estimate,source_note
+common,1,SoC Cortex-A7 + H.264/H.265 + 64MB DDR2 QFN-88,Goke GK7202V300,1,3.00,3.00,no,Alibaba single seller ($3 / CNY 20.28)
+common,2,Analog video decoder MIPI out,Techpoint TP2850,1,2.00,2.00,yes,no public listing found
+common,3,SPI NOR 16MB,W25Q128JVSIQ,1,0.80,0.80,yes,LCSC typical
+common,4,IMU,LSM6DSOTR,1,3.82,3.82,no,Digi-Key qty 1
+common,4b,IMU budget alternative (not counted),LSM6DS3TR-C,0,1.00,0.00,yes,LCSC typical
+common,5,Crystal 24MHz,3225 SMD,1,0.30,0.30,yes,
+common,6,Crystal 27MHz,3225 SMD,1,0.30,0.30,yes,check TP2850 datasheet
+common,7,3.3V buck from 5V input 2A (2.5-5.5V in),SY8089A1 / TLV62569 class,1,0.15,0.15,yes,low minimum input for USB-powered FC 5V
+common,8,Core buck 5V to 0.9V,SY8089 / TLV62569 class,1,0.30,0.30,yes,
+common,9,1.8V rail,buck or LDO,1,0.25,0.25,yes,
+common,10,Inductors,2.2-10uH,3,0.15,0.45,yes,
+common,11,microSD socket push-push,generic,1,0.30,0.30,yes,
+common,12,Microphone analog MEMS high AOP IP57 bottom port,IM73A135V01,1,2.27,2.27,no,Digi-Key qty 1; AOP 135 dB SPL to confirm in datasheet
+common,12b,2.8V LDO for mic,150mA SOT-23-5 LDO,1,0.10,0.10,yes,unless SoC mic bias can supply it
+common,13,FC harness connector (5V GND video in/out),JST-SH 1.0mm 4-6p,1,0.40,0.40,yes,
+common,14,Button + LED,tactile + 0603 LED,1,0.20,0.20,yes,
+common,15,ESD/TVS (5V input + video),5V TVS + ESD diodes,2,0.20,0.40,yes,
+common,16,Passives (~100),0402/0603,1,1.00,1.00,yes,minimum-order strips cost more for 2-5 boards
+A,A1,WiFi 802.11n 1T1R USB QFN-24,RTL8188FTV-VC-CG,1,1.22,1.22,no,LCSC C2760855 (Oct 2024 snapshot)
+A,A2,Crystal 40MHz,3225 SMD,1,0.30,0.30,yes,
+A,A3,RF matching,0402 L/C,4,0.03,0.10,yes,
+A,A4,U.FL connector,generic,1,0.20,0.20,yes,
+A,A5,2.4GHz antenna U.FL,FPC/dipole,1,1.00,1.00,yes,AliExpress
+B,B1,WiFi 6 module 1T1R SDIO dual band + BT5.4,AIC8800D80 module,1,3.43,3.43,no,AliExpress listing; Alibaba 1.75-3
+B,B2,U.FL connector,generic,1,0.20,0.20,yes,if module has only an antenna pad
+B,B3,Dual-band antenna U.FL,FPC,1,1.50,1.50,yes,AliExpress

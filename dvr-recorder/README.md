@@ -19,6 +19,7 @@ Sold as the BAYCKRC / COOAI "MINI DVR" by Sichuan Xilian Zhikong Technology Co.,
 | Connector | SH1.0 mm 3-pin: VIDEO IN, 5-30V IN, GND (the same signals on the solder pads `Video`, `VCC`, `G`); 30 AWG cable included |
 | Storage | microSD up to 512 GB, Class 10 |
 | On board | microphone, button, blue LED, red LED |
+| Button and LED pins (found by `gpioprobe`) | button GPIO6_4 (reads 0 when pressed), blue LED GPIO0_4, red LED GPIO0_3 (both lit at 1) |
 
 ### Masked chips
 
@@ -117,19 +118,101 @@ mic ─► SoC codec (analog gain, ADC) ─► AI: 32 kHz, 16-bit, mono, 10 ms b
 
 ## Settings
 
-dvrrec reads the stock `config.txt` in the card root. Keys it doesn't know (like `UserOsd`) are ignored.
+dvrrec reads `config.txt` in the root of the SD card, the same file the stock firmware uses. It reads it every time it starts, so changes take effect at the next power-up.
 
-| Key | Meaning | When the key is missing |
-|---|---|---|
-| `MaxBitRate` | Video bitrate in Mbit/s | 8 |
-| `FileIntervalTime` | Clip length in minutes | 5 |
-| `VideoFormat` | `PAL` or `NTSC`; anything else means automatic | automatic |
-| `Audio` | `0` turns the microphone track off | on |
-| `MicBoost` | `1` adds about 9 dB of analog gain | off |
-| `MicGain` | Codec mic gain step | codec default (step 3) |
-| `AudioGain` | Software gain in dB, after the low-cut | 0 |
+- One setting per line, written `Key = value` (the spaces around `=` are optional).
+- Key names are case-sensitive: `MaxBitRate`, not `maxbitrate`. `PAL` and `NTSC` must be in capitals too.
+- The file only needs the lines you want to change: a missing key uses the value in the last column.
+- Lines starting with `#`, and keys dvrrec doesn't know (like the stock `UserOsd`), are ignored.
+
+| Key | Meaning | Example | When the key is missing |
+|---|---|---|---|
+| `MaxBitRate` | Video bitrate in Mbit/s, whole numbers (tested up to 20) | `MaxBitRate = 20` | 8 |
+| `FileIntervalTime` | Clip length in minutes | `FileIntervalTime = 5` | 5 |
+| `VideoFormat` | `PAL` or `NTSC` to force a standard; `AUTO` detects it | `VideoFormat = NTSC` | automatic |
+| `Audio` | `1` records the microphone, `0` leaves the track out | `Audio = 0` | 1 (on) |
+| `MicBoost` | `1` adds about 9 dB of analog gain: good for voice on the bench, but prop noise clips | `MicBoost = 1` | 0 (off) |
+| `MicGain` | Codec mic gain step, 0-31; the codec starts at 3 (about 6 dB) | `MicGain = 2` | codec default |
+| `AudioGain` | Extra software gain in dB, 0-30, applied after the low-cut | `AudioGain = 6` | 0 |
+| `LoopRecording` | `1`: when the card is nearly full, delete the oldest `DVR_####.ts` clips to make room. `0`: stop and flash "card full" | `LoopRecording = 1` | 0 (off) |
+
+Our card's `config.txt`, which keeps the stock keys so the stock recorder still works with it:
+
+```
+MaxBitRate = 20
+FileIntervalTime = 5
+UserOsd =
+```
+
+A file using every key:
+
+```
+# 20 Mbit/s, 5-minute clips, detect PAL/NTSC, microphone on at the codec's default gain
+MaxBitRate = 20
+FileIntervalTime = 5
+VideoFormat = AUTO
+Audio = 1
+MicBoost = 0
+# MicGain = 3
+AudioGain = 0
+LoopRecording = 1
+```
+
+For tests, a line of command-line options in `dvr/args` overrides `config.txt` (e.g. `-c 1` for 1-minute clips). The button and LED pins are in a separate file, `dvr/gpio.txt` (see [Button and LEDs](#button-and-leds)).
+
+Loop recording only deletes clips named `DVR_####.ts`, oldest number first, and never the clip being recorded. It keeps room for one whole clip at the current bitrate (about 790 MB at 20 Mbit/s and 5 minutes). Without it, recording stops when 32 MB are left.
+
+The space is checked every 5 s in a separate thread. On a FAT32 card, the first check after power-up makes Linux read the whole allocation table (about 5 s on our 234 GB card). Done in the writer, that froze the first clip for 5 s.
 
 Automatic detection: the TP2850 only locks with the tables of the standard it receives. dvrrec first tries the last standard used (stored in `dvr/std`), then the other one. If there's no picture for 10 s (camera off or unplugged), it restarts and detects again.
+
+## Button and LEDs
+
+dvrrec takes the button and LED pins from `dvr/gpio.txt`. `sdcard/dvr/gpio.txt` has the pins of this board (the cooeye MINIDVR V1.2), so copying `sdcard/` is enough. Without that file, dvrrec records exactly as before, with no button or LEDs.
+
+| | What it does |
+|---|---|
+| Short press (under 2 s) | Stops recording (the clip is closed cleanly), or starts a new clip |
+| Long press (2 s or more) | Nothing. On the stock firmware a 5 s hold formats the card, so dvrrec ignores long presses. |
+| Recording LED: one short flash every 5 s | Recording |
+| Recording LED: steady on | Stopped with the button |
+| Recording LED: two flashes every 5 s | Card full or not writable. A press tries again. |
+| Recording LED: fast blink | Starting up, before the first picture (about 10 blinks after power-on) |
+| Power LED (red) | On while dvrrec runs |
+
+On this board the recording LED is the blue one. Its 5 s rhythm is deliberately slower than the stock firmware's (one flash about every 4.4 s), so you can tell at a glance which recorder is running.
+
+If the camera is unplugged, the TP2850 keeps sending a black picture, so recording simply continues (black) and the picture comes back on its own when the camera is reconnected. Round 17 test: unplugged for about 65 s, all in the same clip, with no restart and no errors.
+
+Recording always starts at power-on. A stop with the button stays in effect if dvrrec restarts itself (for example when the camera is unplugged), but not across a power cycle.
+
+### Finding the pins: gpioprobe
+
+This is only needed on a different board. The chip markings are gone, so the pins are found by watching what the stock firmware does with them. `dvr/gpioprobe` only reads registers; it never changes anything.
+
+The probe is a developer tool, so it isn't in the release zip. Copy this repository's `sdcard/` folder to the card instead: it adds `dvr/gpioprobe` and `dvr/dev.sh`, which the boot hook runs when it is there.
+
+1. Create an empty file named `probe_gpio` in the card root, next to `encrypt`.
+2. Power on with the camera connected. For this one boot the **stock** recorder runs, and the probe watches every pin for 3 minutes.
+3. When the blue LED starts flashing (the stock recorder is recording), wait about 10 s. Then tap the button **4 times, about 5 s apart**. **Short taps only: holding the button for 5 s makes the stock firmware format the card.**
+4. Leave it on until 3 minutes after power-on, then power off. The `probe_gpio` file deletes itself.
+5. Results are in `probe/`:
+   - `17_gpio_summary.txt`: what was found.
+   - `17_gpio_events.txt`: every change.
+   - `17_gpio_boot.txt`: the registers before the stock recorder started.
+
+   If the button and the recording LED were both found without doubt, the probe also writes `dvr/gpio.txt`, so the next power-on already uses them.
+
+   An output that the stock firmware switches on once at start and then holds (like this board's red LED) is listed only as a commented-out guess. An enable line looks the same, so check it before using it.
+
+`dvr/gpio.txt` can also be written by hand. Each pin is `GPIO<bank>_<pin>`, followed by its level when pressed (button) or lit (LEDs). `Mux` lines set a pin function register before the pins are used (only addresses inside the chip's three IO config blocks are accepted). These values are only an example:
+
+```
+Button = GPIO5_3 0
+RecLed = GPIO6_2 1
+PowerLed = GPIO6_1 1
+Mux = 0x100c0010 0x1000
+```
 
 ## Layout
 
@@ -139,7 +222,10 @@ Automatic detection: the TP2850 only locks with the tables of the standard it re
 | `scripts/setup_toolchain.sh` | Installs the Bootlin `armv5-eabi--uclibc` cross-compiler into WSL (`~/toolchains`) |
 | `scripts/build.sh` | Builds into `build/` |
 | `scripts/stage_sdcard.sh` | Copies the built programs and libraries into `sdcard/` |
-| `sdcard/` | Exactly what goes on the SD card root |
+| `scripts/make_release.py` | Packs the release zip for users into `dist/` |
+| `sdcard/` | The SD card root for development: the release files plus the developer tools (`dvr/dev.sh`, `dvr/gpioprobe`, `dvr/imutest`) |
+| `release/` | The user-facing `README.txt`, the default `config.txt` and the licence notice that go into the zip |
+| `tests/` | Host-side tests, run by `scripts/host_test.sh` |
 | `sysroot-board/lib/` | The board's own uClibc 0.9.33 libraries (from the flash dump), linked against so the binaries match the board |
 | `vendor/lib/` | Goke MPP libraries from OpenIPC (`goke-osdrv-gk7205v200`, see `vendor/SOURCE.txt`) |
 | `third_party/divinus/` | Reference HAL headers from OpenIPC Divinus (MIT), commit in `COMMIT.txt` |
@@ -166,14 +252,25 @@ python scripts/check_links.py build/dvrtest
 
 Then copy everything in `sdcard/` to the SD card root.
 
+### Making a release
+
+The version is `DVRREC_VERSION` in `src/dvrrec.c`. After `build.sh` and `stage_sdcard.sh`:
+
+```
+wsl -d Ubuntu-20.04 -- bash scripts/host_test.sh
+python scripts/make_release.py
+```
+
+This writes `dist/open-dvr-<version>.zip`: the boot hook, `dvr/dvrrec`, `dvr/start.sh`, `dvr/gpio.txt`, the five libraries `dvrrec` loads, `README.txt`, `config.txt` and the licences. The script refuses a `dvrrec` that doesn't carry the version or that fails `check_links.py`. The developer tools and test results are left out.
+
 ## Using it
 
-Copy `sdcard/` to the SD card root (`encrypt` and the `dvr/` folder). At power-on the board then records with `dvrrec` instead of the stock recorder.
+Users: extract the release zip into the top folder of the SD card (see its `README.txt`). Developers: copy `sdcard/` to the SD card root (`encrypt` and the `dvr/` folder). Either way, at power-on the board then records with `dvrrec` instead of the stock recorder.
 
 - Settings: `config.txt`, see [Settings](#settings).
-- Log: `dvr/log.txt`. It also prints the audio peak level every 30 s. Extra options for testing: one line in `dvr/args` (e.g. `-c 1` for 1-minute clips).
+- Button and LEDs: see [Button and LEDs](#button-and-leds).
+- Log: `dvr/log.txt`. Every 30 s it shows the audio peak level, whether it is recording, and the free space on the card. Extra options for testing: one line in `dvr/args` (e.g. `-c 1` for 1-minute clips).
 - Back to the stock recorder: create an empty file named `stock` in the card root (or delete `encrypt`). If `dvrrec` fails three times right after starting, the stock recorder starts by itself.
-- Not done yet in dvrrec: the button (stock: short press starts/stops, a 5 s hold formats the card) and the LEDs (stock: blue flashes once every 3-5 s while recording, twice when the card is full, three times when it isn't formatted).
 - Stock firmware updates: per the manual, the stock firmware reflashes itself from `app.jffs2`, `rootfs.sqhfs`, `uboot.bin` and `uImage` on the card when the button is held for 5 s. Keep those files off the card unless that's what you want.
 
 ## Status
@@ -187,7 +284,11 @@ Copy `sdcard/` to the SD card root (`encrypt` and the `dvr/` folder). At power-o
 - [x] NTSC: auto-detection (tries the last standard, then the other), 59.94 fps at 960x480
 - [x] Microphone: MP3 track in sync within one frame; shine fixed for 32 kHz framing and for loud input (see `third_party/shine/SOURCE.txt`); boost off by default after flight tests
 - [ ] Flight check of audio clipping with MicBoost off
-- [ ] Start/stop button and LEDs, loop recording when the card is full, AHD 720p
+- [x] Round 17: `gpioprobe` found the button and the blue LED on its first run. With them, a tap closed `DVR_0020.ts` cleanly and the next tap started `DVR_0021.ts` (both decode with 0 errors, audio in sync)
+- [x] Round 17, 3 more boots: red LED on, blue LED patterns as described, button stop/start in every boot; first clips start without the FAT32 freeze; camera unplug/replug records black, then the picture again, in the same clip
+- [x] Release 0.9 prepared: `dist/open-dvr-0.9.zip` from `scripts/make_release.py`; the boot hook's developer extras moved to `dvr/dev.sh`; the launcher creates `DCIM` on a fresh card
+- [ ] Loop recording and card-full handling: written, not yet tested on the board
+- [ ] AHD 720p
 - [ ] Video interference (hardware side first)
 
 ## Credits and licences

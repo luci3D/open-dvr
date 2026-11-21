@@ -17,3 +17,10 @@ ls -l build/host/*.ts
 # shine at different input levels (loud flight audio came out silent)
 "$HCC" -O2 -static -o build/host/shinetest tests/shinetest.c $SHINE -w -lm
 build/host/shinetest
+
+# gpioprobe's button/LED detection on a simulated board, read back with dvrrec's parser
+"$HCC" -O2 -Wall -Wextra -static -pthread -o build/host/gpioprobe_sim tests/gpioprobe_sim.c src/boardio.c
+build/host/gpioprobe_sim
+
+# the boot hook, dry-run in a sandbox (release layout, stock marker, developer extras)
+bash tests/hook_test.sh
