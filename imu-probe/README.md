@@ -22,6 +22,8 @@ Leave `3Vo`, `DO`, `CS`, `INT1` and `INT2` unconnected. The I2C address is then 
 
 Where the I2C3 pins are: look for `I2C3_SCL` and `I2C3_SDA` in the pinout diagram on the Luckfox wiki page for the Pico Pro/Max. I2C3 can sit on one of two pin sets (the names end in `_M0` and `_M1`); `luckfox-config` (Advanced Options, then I2C) shows which set is on and lets you change it. Take the physical pin numbers from that diagram.
 
+**The I2C speed in `luckfox-config` is in Hz.** Enter `100000` (100 kHz) or `400000` (400 kHz). Entering `100` or `400` sets 100 or 400 Hz; the bus then runs at about 1 kHz, the live view still works, and the log fails. `imutest` prints the setting on its `Bus speed` line and warns about it. Without the menu: set `I2C3_M1_SPEED=100000` in `/etc/luckfox.cfg` and run `luckfox-config load`.
+
 The breakout has its own pull-up resistors and level shifters, so nothing else is needed. Keep the wires short (under about 15 cm).
 
 ## Run it
@@ -57,11 +59,26 @@ If no chip is found, check the bus by hand: `i2cdetect -y 3` should show `6a`.
 | `-x` | Accel full scale in g: 2, 4, 8, 16 | 16 |
 | `-t` | Run time in seconds, 0 = until Ctrl-C | 10 live, 30 logging |
 | `-s` | SPI clock in Hz | 1000000 |
+| `-k` | FIFO words per bus read, 1 to 16 | 16 |
+| `-v` | With `-o`: print every FIFO read (time, words waiting, samples, duration, first tag bytes) | off |
 | `-o` | Log to this `.gcsv` file | live values only |
+
+### If the log fails
+
+Run it again with `-v` and with one FIFO word per read, and compare:
+
+```
+./imutest -d /dev/i2c-3 -t 10 -v -o /root/v16.gcsv
+./imutest -d /dev/i2c-3 -t 10 -v -k 1 -o /root/v1.gcsv
+```
+
+`-v` shows each read's duration. A read that takes seconds points at the bus; if `-k 1` passes where the default fails, the long bus reads are the problem.
 
 ### Reading the summary
 
 ```
+Bus speed     about 93 kHz (20 reads in 33.0 ms), I2C set to 100000 Hz
+...
 Samples       12503 in 30.0 s
 Rate          416.9 Hz measured, 417.3 Hz expected (chip trim +0.15%)
 FIFO peak     14 of 512 words
@@ -71,6 +88,7 @@ Slot jumps    0, unpaired words 0, other words 0
 RESULT: PASS
 ```
 
+- **Bus speed:** measured at the start from 20 direct reads, next to the I2C clock from the device tree. It comes out a little under the setting (about 93 for 100 kHz). Far below it means the bus is misconfigured. When the measured speed is too low for the rate (about 60 kHz for 416 Hz), `imutest -o` stops here with `RESULT: FAIL` instead of logging.
 - **Rate:** samples counted against the board's clock, next to the rate the chip says it runs at (its nominal rate corrected by its factory trim). They should agree within about 1%.
 - **FIFO peak:** how full the chip's 512-word buffer got. One sample is two words. A peak near 512 means the bus barely keeps up.
 - **Overruns:** the buffer overflowed and samples were lost. This is the only way samples get lost, and it fails the test.
@@ -82,11 +100,12 @@ Each sample is 14 bytes on the bus.
 
 | Bus | Highest rate that fits |
 |---|---|
-| I2C at 100 kHz (the Luckfox default, as far as we know) | 416 Hz |
-| I2C at 400 kHz (`clock-frequency` in the board's device tree) | 1667 Hz |
-| SPI at 1 MHz or more | 6667 Hz |
+| I2C at 100 kHz | 416 Hz (tested) |
+| I2C at 400 kHz | 1667 Hz, with the bus about 65% busy (not tested) |
+| SPI at 1 MHz (the `-s` default) | 3333 Hz (tested) |
+| SPI at 4 MHz | 6667 Hz, the chip's maximum (tested) |
 
-416 Hz is enough to try Gyroflow. The first test is whether 416 Hz passes on the stock I2C bus; then try `-r 833`, which should overflow at 100 kHz and pass on SPI.
+416 Hz is enough for Gyroflow, as the Thumb Pro test showed; 833 to 1667 Hz is the target on a quad, where prop vibration would otherwise alias into slow false motion. `imutest -o` refuses a rate the bus is too slow for.
 
 ## The log
 
@@ -111,22 +130,40 @@ t,gx,gy,gz,ax,ay,az
 
 To try it in Gyroflow before the DVR records video: tape the breakout to a phone or action camera, record a clip while `imutest -o` runs, then load the clip and the `.gcsv` in Gyroflow and let it synchronize.
 
-## SPI (later)
+## SPI
 
-For rates above 416 Hz. Six wires; enable SPI0 in `luckfox-config` first.
+For rates above 416 Hz. Six wires.
 
 | Adafruit pad | Luckfox Pico Pro pin |
 |---|---|
 | `VIN` | `3V3(OUT)` |
 | `GND` | `GND` |
-| `SCL` | SPI0 `CLK` |
-| `SDA` | SPI0 `MOSI` |
-| `DO` | SPI0 `MISO` |
-| `CS` | SPI0 `CS0` |
+| `SCL` | `GPIO1_C1` (SPI0 `CLK`) |
+| `SDA` | `GPIO1_C2` (SPI0 `MOSI`) |
+| `DO` | `GPIO1_C3` (SPI0 `MISO`) |
+| `CS` | `GPIO1_C0` (SPI0 `CS0`) |
+
+In `luckfox-config`, turn on SPI0 M0 as spidev (not the display driver that shares its chip select) and set its speed to `10000000`. Like the I2C field, it is in Hz, and it is only a ceiling: `imutest` sets the clock itself with `-s`. SPI0 M0 shares no pins with I2C3 M1, so both can stay on. On SPI, `imutest` turns the chip's I2C interface off so SPI traffic can't be taken for I2C.
 
 ```
 ./imutest -d /dev/spidev0.0 -r 1667 -o /root/test.gcsv
+./imutest -d /dev/spidev0.0 -r 6667 -s 4000000 -o /root/test.gcsv
 ```
+
+Results on the Pico Pro with jumper wires (30 s each, board lying still, all with 0 overruns, 0 slot jumps, 0 unpaired words):
+
+| Rate | SPI clock | Bus speed line | FIFO peak | Measured rate |
+|---|---|---|---|---|
+| 416 Hz | 1 MHz | 761 kHz | 6 | 417.7 Hz |
+| 833 Hz | 1 MHz | 760 kHz | 12 | 835.4 Hz |
+| 1667 Hz | 0.5 MHz | 430 kHz | 32 | 1670.6 Hz |
+| 1667 Hz | 1 MHz | 769 kHz | 24 | 1670.8 Hz |
+| 1667 Hz | 4 MHz | 1639 kHz | 22 | 1670.8 Hz |
+| 3333 Hz | 1 MHz | 744 kHz | 66 | 3341.3 Hz |
+| 6667 Hz | 1 MHz | refused (needs about 801 kHz) | | |
+| 6667 Hz | 4 MHz | 1803 kHz | 100 | 6682.5 Hz |
+
+The gyro and accel averages at 1667 Hz match to the count between 0.5 and 4 MHz. The measured rates run 0.08 to 0.1% above the expected ones: the timestamp drift noted in Phase 0 of [`../ROADMAP.md`](../ROADMAP.md).
 
 ## Build
 
@@ -149,7 +186,9 @@ This first runs the host test (`tests/imusim.c`: the chip code against a simulat
 ## Status
 
 - [x] Host test passes; the program was also run on a PC against a simulated chip on a slow bus (416 Hz passes at 100 kHz, 833 Hz overflows as expected)
-- [ ] First run on the Luckfox Pico Pro: chip found, live values, axes
-- [ ] 30 s log at 416 Hz with no overruns
-- [ ] SPI, 833 and 1667 Hz
-- [ ] Log synchronizes in Gyroflow
+- [x] Axes known for one mounting: taped to a RunCam Thumb Pro, our gx = -Thumb rz, gy = -Thumb rx, gz = +Thumb ry
+- [x] First run: chip found on `/dev/i2c-3` (I2C3, M1 pins), live values correct lying still
+- [x] 30 s log at 416 Hz with no overruns: 12526 samples, 417.6 Hz measured, FIFO peak 12, 0 slot jumps (I2C3 at 100 kHz). The earlier failures, with a FIFO read stalling for about 33 s, came from the I2C speed being entered as `400` in `luckfox-config`, which means 400 Hz
+- [x] SPI: 416 to 3333 Hz pass at 1 MHz, 6667 Hz passes at 4 MHz (table under SPI)
+- [x] Log synchronizes in Gyroflow: 53 s log against the Thumb Pro's own gyro, correlation 0.993, gain within 1%
+- [ ] Timestamps follow the board clock (now 0.07% slow, see Phase 0 in [`../ROADMAP.md`](../ROADMAP.md))

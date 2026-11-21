@@ -21,6 +21,7 @@ typedef struct { short g[3], a[3]; } imu_sample;   /* raw counts */
 
 typedef struct {
     imu_bus bus;
+    int spi;                  /* 1 = on SPI: imu_setup() turns the chip's I2C interface off */
     int odr_code;             /* ODR field of CTRL1_XL / CTRL2_G */
     double odr_nominal;       /* Hz, from the datasheet table */
     double odr_hz;            /* Hz, corrected with the chip's factory trim */
@@ -32,6 +33,9 @@ typedef struct {
     imu_sample pend;
     int have_g, have_a, seen_g, last_cnt;
     int fill;                 /* words waiting at the last imu_fifo_read() */
+    int chunk;                /* FIFO words per bus read, 1..16 (0 = 16) */
+    unsigned char tags[4];    /* first tag bytes of the last read, for -v */
+    int ntags;
     unsigned long long overruns, cnt_jumps, unpaired, other_words;
 } imu_dev;
 

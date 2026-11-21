@@ -95,6 +95,10 @@ The test program and the wiring are in [`imu-probe/`](imu-probe/): `imutest` cov
 
 Done when: a clean, gap-free gyro log at the target rate that Gyroflow accepts.
 
+Status: steps 1 to 6 pass: I2C at 416 Hz, SPI from 416 Hz up to the chip's 6667 Hz maximum (1 MHz clock up to 3333 Hz, 4 MHz for 6667 Hz). A 53 s log taped to a RunCam Thumb Pro synced in Gyroflow and matched the camera's own gyro (correlation 0.993, gain within 1% on every axis).
+
+To fix later: **log timestamps drift 0.07%** against the camera (22 ms after 45 s, growing steadily). `imutest` stamps sample N as start time + N times the period from the chip's trimmed rate (417.3 Hz), but the board clock measures the chip at about 417.6 Hz. Stamp samples from `CLOCK_MONOTONIC` instead: fit the sample count against the time of each FIFO read and follow the chip's real rate. It doesn't matter for short clips, but it adds up to about 0.4 s over 10 minutes, and video frames will be stamped with that same clock.
+
 Optional later: the kernel's `st_lsm6dsx` IIO driver (supports the LSM6DSOX) with a device-tree entry, if user-space reading isn't good enough.
 
 ### Phase 1: decoder board + video on Luckfox
@@ -146,6 +150,7 @@ Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DV
 ### Phase 5: integrated on-quad boards
 - RV1103 + TP2850 + SPI NOR/NAND + microSD + IMU + mic + WiFi (chip from phase 3) + regulators on one board, starting from the open Luckfox Pico schematic.
 - 4 layers; keep the analog video input away from the switching regulator and the WiFi antenna; plan for vibration damping of the IMU.
+- **Reverse polarity protection** on the 5-30 V input: a wire swapped on the SH1.0 connector or the solder pads must not kill the board. Start from the decoder board's input (P-MOSFET Q1 + TVS D2, see `decoder-board/`), but that one only sees 5 V: for up to 30 V pick a FET rated well above 30 V and clamp its gate with a zener and resistor (the AO3401A's gate is only rated to 12 V), and use a TVS sized for a 6S pack. Alternatives: an ideal-diode controller (smallest drop, more parts) or a Schottky (simplest, about 0.3-0.4 V drop). Bench-test with the input reversed on a current-limited supply.
 - Full size first (easier), then whoop.
 
 ### Phase 6: Radxa Zero 3W
@@ -169,6 +174,7 @@ Done when: a phone downloads a 3-minute clip as MP4 with its `.gcsv` over the DV
 - [ ] WiFi on the Luckfox: does the Pico Pro's USB port work in host mode with the stock SDK image, and which dongle drivers does the SDK kernel include? (phase 3)
 - [ ] Does the Gyroflow mobile app load `.gcsv` files? (phase 3)
 - [ ] MP4 remux on the board: on download (streamed) or after each recording (needs card space)? (phase 3)
+- [ ] Reverse polarity protection on the 5-30 V input: P-MOSFET with gate clamp, ideal-diode controller or Schottky? (phase 5)
 - [ ] Goggles: which models have HDMI in? Power and heat budget of the Zero 3W in a goggle bay.
 - [ ] Radxa Zero 3W USB: which port powers the board, and does a hub fit for keyboard + flight controller?
 
