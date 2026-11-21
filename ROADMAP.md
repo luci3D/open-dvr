@@ -79,6 +79,7 @@ Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
 ### Phase 4: integrated on-quad boards
 - RV1103 + TP2850 + SPI NOR/NAND + microSD + IMU + mic + regulators on one board, starting from the open Luckfox Pico schematic.
 - 4 layers; keep the analog video input away from the switching regulator; plan for vibration damping of the IMU.
+- **Reverse polarity protection** on the 5-30 V input: a wire swapped on the SH1.0 connector or the solder pads must not kill the board. Options to compare: a P-channel MOSFET with a gate zener (almost no voltage drop; the zener keeps the gate safe up to 30 V), an ideal-diode controller (smallest drop, more parts), or a Schottky diode (simplest, about 0.3-0.4 V drop and a little heat). Add a TVS diode for voltage spikes from the flight battery while there. Bench-test with the input reversed on a current-limited supply.
 - Full size first (easier), then whoop.
 
 ### Phase 5: Radxa Zero 3W
@@ -95,6 +96,7 @@ Done when: a clean 50 fps PAL / 59.94 fps NTSC H.264 file from the Luckfox.
 - [ ] Is the camera connector's 3.3 V enough for the TP2850, or does the decoder board need its own regulator?
 - [ ] Mic: the RV1103's built-in codec (is the mic input broken out on the Luckfox boards?) or a digital I2S/PDM mic on the breakout?
 - [ ] Storage on the integrated board: SPI NAND vs NOR, and how big?
+- [ ] Reverse polarity protection on the power input: MOSFET, ideal-diode controller or Schottky? (phase 4)
 - [ ] Goggles: which models have HDMI in? Power and heat budget of the Zero 3W in a goggle bay.
 - [ ] Radxa Zero 3W USB: which port powers the board, and does a hub fit for keyboard + flight controller?
 
