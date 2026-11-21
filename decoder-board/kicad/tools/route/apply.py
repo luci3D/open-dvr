@@ -22,6 +22,7 @@ def pt(x, y):
 
 def main(pcb, routes):
     b = pcbnew.LoadBoard(pcb)
+    nets = {str(k): v for k, v in b.GetNetsByName().items()}   # before any removal: KiCad's Python breaks after one
     for fp in b.GetFootprints():
         if fp.GetReference() in MOVES:
             x, y, r = MOVES[fp.GetReference()]
@@ -31,7 +32,6 @@ def main(pcb, routes):
         b.Remove(t)
     if routes:
         d = json.load(open(routes))
-        nets = b.GetNetsByName()
         for t in d['tracks']:
             tr = pcbnew.PCB_TRACK(b)
             tr.SetStart(pt(t['x1'], t['y1']))

@@ -614,6 +614,10 @@
       },
       {
         "netclass": "Analog",
+        "pattern": "/VID_REF"
+      },
+      {
+        "netclass": "Analog",
         "pattern": "/VIN1P"
       },
       {

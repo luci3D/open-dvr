@@ -54,7 +54,7 @@ PLACE = {
     # Video and 5 V input (left)
     'J2': (3.5, 22.3, 270),
     'D1': (7.9, 20.6, 90), 'R3': (7.9, 22.6, 90), 'JP1': (8.4, 25.3, 90),
-    'Q1': (2.2, 28.8, 0), 'R5': (4.8, 28.8, 90), 'D2': (7.6, 32.2, 0), 'C28': (2.6, 32.0, 0),
+    'Q1': (2.2, 28.8, 0), 'R5': (4.8, 28.8, 90), 'R16': (6.3, 30.45, 0), 'D2': (7.6, 32.2, 0), 'C28': (2.6, 32.0, 0),
     # Camera 5 V out
     'F1': (12.6, 31.8, 0), 'FB4': (16.4, 31.8, 0), 'C29': (12.6, 29.2, 0),
     # 1.2 V buck (right, away from the video input and the mic)
@@ -62,8 +62,8 @@ PLACE = {
     'C25': (17.6, 16.6, 90), 'R1': (18.6, 18.8, 0), 'R2': (18.6, 20.0, 0),
     'C26': (26.0, 16.0, 90), 'C30': (24.0, 19.6, 0),
     # 3.3 V and 1.8 V LDOs (middle)
-    'U2': (17.2, 22.6, 0), 'C15': (14.8, 22.6, 90), 'C16': (19.6, 22.6, 90),
-    'U4': (17.2, 26.6, 0), 'C17': (14.2, 26.6, 90), 'C18': (20.2, 26.6, 90),
+    'U2': (17.2, 22.6, 90), 'C15': (14.6, 22.6, 90), 'C16': (19.8, 22.6, 90),
+    'U4': (17.2, 26.6, 180), 'C17': (14.2, 26.6, 90), 'C18': (20.2, 26.6, 90),
     'R9': (10.8, 24.6, 0), 'R10': (10.8, 25.8, 0),
     # Mic (bottom right): MK1 with its sound hole, LDO, coupling caps, attenuator
     'MK1': (25.4, 28.6, 0),
@@ -75,10 +75,10 @@ PLACE = {
     'H1': (2.6, 2.6, 0), 'H2': (25.8, 2.4, 0),
 }
 
-J3_LABELS = ['VID', '5Vin', 'GND', 'CAM', 'GND', 'VSYS', 'GND', 'M+', 'M-', 'GND']
+J3_LABELS = ['VID', 'VG', '5Vin', 'GND', 'CAM', 'GND', 'VSYS', 'M+', 'M-', 'GND']
 SILK = [  # text, x, y, size, angle, layer
     ('VID 5V GND', 4.0, 18.2, 0.6, 0, 'F'), ('75R', 8.4, 27.4, 0.6, 0, 'F'),
-    ('open-dvr decoder', 14.0, 12.0, 1.0, 0, 'B'), ('v0.1  2026-11', 14.0, 13.6, 0.8, 0, 'B')]
+    ('open-dvr decoder', 14.0, 12.0, 1.0, 0, 'B'), ('v0.2  2026-11', 14.0, 13.6, 0.8, 0, 'B')]
 SHOW_REF = ()                             # silkscreen references kept for these (none: labels instead)
 NOT_IN_BOM = {'J3', 'JP1', 'H1', 'H2'}    # PCB-only, matches the schematic
 
@@ -94,7 +94,7 @@ NETCLASSES = [
     ('Power', 0.4, 0.2, 0.6, 0.3, 0.2, 0.15,
      ['/VIN_RAW', '/5V', '/CAM_5V*', '/SW_1V2', '/1V2', '/3V3']),
     ('MIPI', 0.2, 0.15, 0.5, 0.3, 0.2, 0.2, ['/MIPI_*']),
-    ('Analog', 0.2, 0.2, 0.5, 0.3, 0.2, 0.15, ['/VIDEO_IN', '/VIN1P', '/VIN1N', '/TERM', '/MIC_*']),
+    ('Analog', 0.2, 0.2, 0.5, 0.3, 0.2, 0.15, ['/VIDEO_IN', '/VID_REF', '/VIN1P', '/VIN1N', '/TERM', '/MIC_*']),
 ]
 
 
@@ -179,6 +179,9 @@ def main():
 
     for ref, c in sorted(comps.items()):
         fp = load_fp(c['footprint'])
+        if ref == 'J3':                    # wires are soldered straight to the holes: no header model
+            while len(fp.Models()):
+                fp.Models().pop_back()
         fp.SetReference(ref)
         fp.SetValue(c['value'])
         fp.SetPath(pcbnew.KIID_PATH('/' + c['tstamp']))

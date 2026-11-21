@@ -9,6 +9,11 @@ board edge). Shapes that sit exactly on the grid (QFN pads, straight tracks) are
 everything else gets a margin for the worst-case grid error. KiCad's DRC is the final check.
 GND pads get a short trace to a via (or to the TP9950 exposed pad); vias join the In1/In2 planes.
 Writes all tracks and vias (hand + routed) to routes.json for apply.py.
+
+    python route.py geometry.json routes.json --reroute NET,NET,...
+
+keeps every existing track and via (including edits made by hand in KiCad) and routes only the
+listed nets, with their HAND_TRACKS. Nets in PAIRS are pulled alongside their partner.
 """
 import heapq
 import json
@@ -30,7 +35,7 @@ MARGIN = 0.036 / RES      # extra cells kept from off-grid shapes (worst-case gr
 WINDOW = 4.0              # mm around each connection searched first
 
 CLASS_02 = {'/VIN_RAW', '/5V', '/CAM_5V_F', '/CAM_5V', '/SW_1V2', '/1V2', '/3V3',      # Power
-            '/VIDEO_IN', '/VIN1P', '/VIN1N', '/TERM', '/MIC_OUTP', '/MIC_OUTN',           # Analog
+            '/VIDEO_IN', '/VID_REF', '/VIN1P', '/VIN1N', '/TERM', '/MIC_OUTP', '/MIC_OUTN',           # Analog
             '/MIC_P_C', '/MIC_N_C', '/MIC_P', '/MIC_N'}
 WIDTH = {'/VIN_RAW': 0.4, '/5V': 0.4, '/CAM_5V_F': 0.4, '/CAM_5V': 0.4, '/SW_1V2': 0.4,
          '/1V2': 0.4, '/3V3': 0.3, '/1V8': 0.3}
@@ -74,8 +79,14 @@ HAND_TRACKS = [
     ('/SDA', 'B', [(14.8, 11.3), (16.95, 9.15), (16.95, 6.9)], 0.2),
     ('/SDA', 'F', [(16.95, 6.9), (16.95, 5.46)], 0.2),
     ('/SCL', 'F', [(14.0, 12.3), (14.6, 12.3), (16.45, 10.45), (16.45, 5.46)], 0.2),
-    ('/RSTB', 'F', [(14.0, 12.7), (14.7, 12.7), (17.95, 9.45), (17.95, 5.46)], 0.2),
-    ('/RSTB', 'F', [(17.95, 9.45), (18.6, 10.1)], 0.2),                                # -> R4
+    # RSTB turns as late as C8 allows, for more room from SCL
+    ('/RSTB', 'F', [(14.0, 12.7), (14.85, 12.7), (17.95, 9.6), (17.95, 5.46)], 0.2),
+    ('/RSTB', 'F', [(17.95, 9.6), (18.6, 10.25)], 0.2),                                # -> R4
+    # mic outputs to the coupling caps as a pair (0.45 mm pitch): OUTP over the top of MK1's
+    # pins and down the outer lane to C22, OUTN down the inner lane to C23
+    ('/MIC_OUTP', 'F', [(26.25, 27.23), (26.25, 26.6), (23.8, 26.6), (23.35, 27.05), (23.35, 31.2),
+                        (23.08, 31.2)], 0.2),
+    ('/MIC_OUTN', 'F', [(24.55, 27.23), (23.8, 27.23), (23.8, 32.6), (23.08, 32.6)], 0.2),
 ]
 HAND_VIAS = [
     ('/MIPI_D1P', 10.75, 7.90), ('/MIPI_D1P', 14.95, 6.90),
@@ -85,8 +96,17 @@ HAND_VIAS = [
     ('/GND', 10.7, 11.7), ('/GND', 12.3, 11.7), ('/GND', 10.7, 13.3), ('/GND', 12.3, 13.3),
 ]
 
+# the buck's switch node: other nets keep this far from it on F.Cu (B.Cu is shielded by the planes)
+NOISY_NET, NOISY_KEEP = '/SW_1V2', 4.0
+BUCK_NETS = {'/SW_1V2', '/1V2', '/5V', '/FB_1V2', '/GND'}
+
+# second net of a pair: routed after its partner, with a cheap lane alongside the partner's tracks
+PAIRS = {'/MIC_OUTN': '/MIC_OUTP', '/MIC_N': '/MIC_P', '/VID_REF': '/VIDEO_IN'}
+PAIR_LANE = 0.5           # mm beyond the partner's copper edge that counts as "alongside"
+PAIR_DISCOUNT = 0.5       # step cost inside that lane
+
 ORDER = [  # routing order; nets not listed are routed afterwards, GND last (fanout)
-    '/XTI', '/XTO', '/VIN1P', '/VIN1N', '/VIDEO_IN', '/TERM',
+    '/XTI', '/XTO', '/VIN1P', '/VIN1N', '/VIDEO_IN', '/VID_REF', '/TERM',
     '/VIO', '/DVDD', '/AVDD33', '/AVDD12', '/RSTB', '/SCL', '/SDA', '/MCLK', '/LF_3V3',
     '/SW_1V2', '/FB_1V2', '/1V2', '/1V8', '/3V3', '/Q1_G', '/VIN_RAW', '/5V', '/CAM_5V_F', '/CAM_5V',
     '/2V8_MIC', '/MIC_OUTP', '/MIC_OUTN', '/MIC_P_C', '/MIC_N_C', '/MIC_P', '/MIC_N',
@@ -238,6 +258,8 @@ class Board:
                 self.padcells.append((net, cells, p))
         # no via touching any pad (avoids vias in small pads)
         self.via_forbid |= dilate(anypad, VIA_D / 2 / RES + 1)
+        sw = self.ids.get(NOISY_NET)
+        self.sw_keep = dilate(self.cn['F'] == sw, NOISY_KEEP / RES) if sw else None
 
     # --- copper bookkeeping -----------------------------------------------------------
     def _mark(self, net, L, m, y0, x0, exact):
@@ -305,6 +327,8 @@ class Board:
                         vsub &= ~dilate(s2, (VIA_D / 2 + need) / RES + extra)
             full = np.ones((NY, NX), bool)
             full[ya:yb, xa:xb] = b[crop]
+            if L == 'F' and self.sw_keep is not None and net not in BUCK_NETS:
+                full |= self.sw_keep
             block[L] = full
         vok[ya:yb, xa:xb] = vsub[crop]
         return block, vok
@@ -317,8 +341,9 @@ def window(cells_a, cells_b, extra):
     return (max(0, min(ys) - e), min(NY, max(ys) + e + 1), max(0, min(xs) - e), min(NX, max(xs) + e + 1))
 
 
-def astar(starts, goals, goal_xy, block, vok, allow_via=True, max_exp=800000):
+def astar(starts, goals, goal_xy, block, vok, allow_via=True, max_exp=800000, cheap=None):
     blk = [bytes(block['F'].ravel()), bytes(block['B'].ravel())]
+    hk = PAIR_DISCOUNT if cheap is not None else 1.0
     vk = bytes(vok.ravel())
     gx, gy = cell(goal_xy[0]), cell(goal_xy[1])
 
@@ -326,7 +351,7 @@ def astar(starts, goals, goal_xy, block, vok, allow_via=True, max_exp=800000):
         r = i % N2
         y, x = divmod(r, NX)
         dx, dy = abs(x - gx), abs(y - gy)
-        return max(dx, dy) + 0.4142 * min(dx, dy)
+        return (max(dx, dy) + 0.4142 * min(dx, dy)) * hk
 
     g, par, heap = {}, {}, []
     for s in starts:
@@ -362,7 +387,7 @@ def astar(starts, goals, goal_xy, block, vok, allow_via=True, max_exp=800000):
             if dx and dy and (bl[y * NX + nx] or bl[ny * NX + x]):
                 continue
             j = li * N2 + ny * NX + nx
-            ng = gc + c * lc
+            ng = gc + c * lc * (PAIR_DISCOUNT if cheap is not None and cheap[j] else 1.0)
             if ng < g.get(j, 1e18):
                 g[j] = ng
                 par[j] = i
@@ -427,7 +452,7 @@ def free(cells, block):
     return {c for c in cells if not fb[c // N2][c % N2]}
 
 
-def connect(bd, net, starts_all, cells, target_xy, w, allow_via=True, extra_goals=None):
+def connect(bd, net, starts_all, cells, target_xy, w, allow_via=True, extra_goals=None, cheap=None):
     """Try a window around the connection first, then the whole board."""
     for win in (window(starts_all, cells or starts_all, WINDOW), None):
         block, vok = bd.masks(net, w, win)
@@ -438,7 +463,7 @@ def connect(bd, net, starts_all, cells, target_xy, w, allow_via=True, extra_goal
             gl |= {c for c in extra_goals(vok) if not fb[c // N2][c % N2]}
         if not st or not gl:
             continue
-        path = astar(st, gl, target_xy, block, vok, allow_via=allow_via)
+        path = astar(st, gl, target_xy, block, vok, allow_via=allow_via, cheap=cheap)
         if path:
             return path, block
     return None, None
@@ -469,7 +494,23 @@ def components(bd, net):
     return parts
 
 
+def pair_lane(bd, partner):
+    """Cells within PAIR_LANE of the partner's routed copper, per layer, as bytes over both layers."""
+    cells = bd.routed.get(partner, set())
+    if not cells:
+        return None
+    out = []
+    for li in (0, 1):
+        m = np.zeros(N2, bool)
+        idx = [c - li * N2 for c in cells if c // N2 == li]
+        m[idx] = True
+        m = m.reshape(NY, NX)
+        out.append((dilate(m, PAIR_LANE / RES) & ~m).ravel())
+    return bytes(np.concatenate(out))
+
+
 def route_net(bd, net, w):
+    cheap = pair_lane(bd, PAIRS[net]) if net in PAIRS else None
     pads = [(cells, p) for n, cells, p in bd.padcells if n == net]
     if len(pads) < 2:
         return True, 'single pad'
@@ -494,7 +535,7 @@ def route_net(bd, net, w):
         cx, cy = centre(cells)
         done = False
         for width in sorted({w, DEFAULT_W}, reverse=True):
-            path, block = connect(bd, net, tree, cells, (cx * RES, cy * RES), width)
+            path, block = connect(bd, net, tree, cells, (cx * RES, cy * RES), width, cheap=cheap)
             if path:
                 n0 = len(bd.items.get(net, []))
                 polys, vias = path_to_geometry(path, block)
@@ -572,16 +613,46 @@ def run(geo, order):
     return bd, failed, early + fanout_gnd(bd)
 
 
-def main(geo_path, out_path, tries=6):
+def run_reroute(geo, order):
+    """Keep the board's tracks and vias except those of the nets in order; route those."""
+    bd = Board(geo)
+    nets = set(order)
+    for t in geo['tracks']:
+        if t['net'] not in nets:
+            bd.add_track(t['net'], t['layer'], [(t['x1'], t['y1']), (t['x2'], t['y2'])], t['w'])
+    for v in geo['vias']:
+        if v['net'] not in nets:
+            bd.add_via(v['net'], v['x'], v['y'])
+            bd.vias[-1].update(d=v['d'], drill=v['drill'])
+    for net, L, pts, w in HAND_TRACKS:
+        if net in nets:
+            bd.add_track(net, L, pts, w)
+    for net, x, y in HAND_VIAS:
+        if net in nets:
+            bd.add_via(net, x, y)
+    failed = []
+    for net in order:
+        ok, why = route_net(bd, net, WIDTH.get(net, DEFAULT_W))
+        if not ok:
+            failed.append((net, why))
+    return bd, failed, fanout_gnd(bd)
+
+
+def main(geo_path, out_path, tries=6, reroute=None):
     geo = json.load(open(geo_path))
     probe = Board(geo)
     hand = {n for n, _, _, _ in HAND_TRACKS if n.startswith('/MIPI')}   # fully hand-routed
     nets = [n for n in ORDER if n in probe.ids]
     others = sorted({n for n, _, _ in probe.padcells} - set(nets) - {'/GND'} - hand)
     order = [n for n in nets + others if not n.startswith('unconnected')]
+    if reroute:
+        unknown = set(reroute) - set(probe.ids)
+        if unknown:
+            sys.exit('unknown nets: %s' % sorted(unknown))
+        order = [n for n in order if n in reroute]
     best = None
     for k in range(tries):
-        bd, failed, gnd_failed = run(geo, order)
+        bd, failed, gnd_failed = (run_reroute if reroute else run)(geo, order)
         score = len(failed) * 10 + len(gnd_failed)
         print('try %d: failed %s, GND fanout failed %s' % (k + 1, [f for f, _ in failed], gnd_failed), flush=True)
         if best is None or score < best[0]:
@@ -598,4 +669,7 @@ def main(geo_path, out_path, tries=6):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    rr = None
+    if len(sys.argv) > 4 and sys.argv[3] == '--reroute':
+        rr = set(sys.argv[4].split(','))
+    main(sys.argv[1], sys.argv[2], reroute=rr)

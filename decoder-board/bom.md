@@ -25,7 +25,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | D2 | 1 | TVS 5 V, SOD-123FL (5 V input) | C193402 | SMF5.0A | extended | 456 037 | 0.028 | |
 | Q1 | 1 | P-MOSFET, SOT-23 (reverse-polarity protection) | C15127 | AO3401A | basic | 1.54 M | 0.081 | |
 | F1 | 1 | Polyfuse 500 mA hold, 6 V, 0805 (camera 5 V out) | C883108 | BSMD0805-050-6V | extended | 39 411 | 0.050 | |
-| R3 | 1 | 75 Ω 1 % 0402 (video termination) | C25133 | 0402WGF750JTCE | extended | 1.04 M | 0.001 | Behind JP1, open by default |
+| R3, R16 | 2 | 75 Ω 1 % 0402 (video termination, VG tie) | C25133 | 0402WGF750JTCE | extended | 1.04 M | 0.001 | R3 behind JP1 (open by default); R16 ties J3 VG to GND |
 | JP1 | 1 | Solder jumper (termination) | — | — | PCB | — | — | |
 | J3 | 1 | Row of 10 × 2.54 mm through-holes | — | — | PCB | — | — | Not assembled: wires or a 10-pin header soldered by the user. See [Connectors](README.md#connectors) |
 | H1–H2 | 2 | M2 mounting holes | — | — | PCB | — | — | |

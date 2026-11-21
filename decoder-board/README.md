@@ -23,12 +23,12 @@ J3, labelled on the silkscreen, left to right:
 | Pin | Label | Net | Goes to |
 |---|---|---|---|
 | 1 | VID | Video in | Same as J2 pin 1 |
-| 2 | 5Vin | 5 V in | Same as J2 pin 2 |
-| 3 | GND | GND | |
-| 4 | CAM | Camera 5 V out, through the polyfuse | A camera on the bench |
-| 5 | GND | GND | |
-| 6 | VSYS | 5 V out | Luckfox **VSYS (header pin 39)**: one 5 V feed from the FC powers both boards. VSYS is the Luckfox's 5 V system rail; its USB-C input reaches it through a Schottky diode, so USB can stay plugged in |
-| 7 | GND | GND | |
+| 2 | VG | Video ground sense (VID_REF) | The camera's ground at the tap, on its own wire twisted with VID. Optional: R16 ties it to GND (see [Video input network](#video-input-network)) |
+| 3 | 5Vin | 5 V in | Same as J2 pin 2 |
+| 4 | GND | GND | |
+| 5 | CAM | Camera 5 V out, through the polyfuse | A camera on the bench |
+| 6 | GND | GND | |
+| 7 | VSYS | 5 V out | Luckfox **VSYS (header pin 39)**: one 5 V feed from the FC powers both boards. VSYS is the Luckfox's 5 V system rail; its USB-C input reaches it through a Schottky diode, so USB can stay plugged in |
 | 8 | M+ | Mic + | Luckfox codec pad 3 (MIC0+) |
 | 9 | M− | Mic − | Luckfox codec pad 4 (MIC0−) |
 | 10 | GND | GND | Luckfox header pin 23 (mic ground) |
@@ -126,12 +126,17 @@ Video pad ──┬── ESD diode (<1 pF) ── GND
             ├── 75 Ω ── JP1 (open by default) ── GND
             └── 0.1 µF ── VIN1P (pin 7)
 
-Video GND pad ── 0.1 µF ── VIN1N (pin 8)     (pseudo-differential, to confirm)
+J3 VG (camera ground sense) ──┬── 0.1 µF (C13) ── VIN1N (pin 8)
+                              └── 75 Ω (R16) ── GND
 ```
 
 - The datasheet asks for the input to be AC-coupled with **0.1 µF**.
 - **JP1 is open by default:** on the quad the DVR is a parallel tap, and the FC (or VTX) already terminates the line (see [Requirements](../ROADMAP.md#requirements)). Close it on the bench when the camera is wired straight in.
-- **Pseudo-differential input:** pins 7 and 8 can be used as a pair (VIN1P/VIN1N). Taking the negative input from the camera's ground pad rejects ground noise between the quad and the DVR. This is how Techpoint chips are usually wired, but the datasheet section on it didn't extract cleanly; check it on the PDF and on the COOAI board before relying on it. Fallback: VIN1N to GND through 0.1 µF at the chip.
+- **Pseudo-differential input (v0.2):** VIN1N's cap C13 goes to its own net, VID_REF, which leaves the board on J3 VG.
+  - **Wiring:** solder a wire from VG to the camera's ground at the same point where VID is tapped, and twist it with the VID wire. That wire carries no power current, so it holds the camera's ground voltage. The chip then measures the video against the camera's ground, and ground noise between the quad and the DVR (ESC and camera currents in the ground wires) cancels.
+  - **R16 (75 Ω to GND):** keeps the input working when VG isn't wired, and then it behaves like v0.1. With the wire connected, only a fraction of a milliamp of ground noise flows through R16, which the sense wire swamps.
+  - **To compare:** short R16 with solder or a 0 Ω and you're back to the v0.1 behaviour, so the two can be A/B tested on the bench.
+  - **Still to confirm:** the datasheet section on the negative input didn't extract cleanly. Check it on the PDF and on the COOAI board.
 
 ## Host connector (FPC)
 
@@ -331,11 +336,43 @@ Fixes made:
 - **Thermal gap:** reduced from 0.5 to 0.3 mm. At 0.5 mm, J3's pin cut-outs merged into a 17 mm slot in both planes.
 - **GND vias:** four added beside MIPI lane 1's layer changes, so its return current can hop between In1 and In2 within about 1 mm.
 
-v0.2 ideas:
-- **U4 and U2:** rotate U4 by 180° and U2 by 90°, then re-route 5V, 3V3 and 1V8.
-- **Video reference:** give VIN1N's cap C13 its own sense wire to the camera ground (pseudo-differential input), with a 0 Ω option to the plane.
-- **Mic pair:** route the mic outputs as a pair.
-- **RSTB:** move it 0.3 mm further from SCL.
+### v0.2 changes (2026-11-21)
+
+Applied from the signal review:
+- **Video reference:** J3 gains a VG pin (video ground sense) next to VID, and C13 now references VIN1N to it. R16 (75 Ω, the same part as R3) ties VG to GND near the pin. To make room, J3's pins 2 to 7 moved up by one, and the spare GND that was next to VSYS is gone.
+- **U2 and U4 rotated:** U2 by 90°, U4 by 180°, with C15 and C16 moved 0.2 mm out for U2's courtyard. The 5V, 3V3 and 1V8 runs got shorter:
+
+  | Net | v0.1 | v0.2 |
+  |---|---|---|
+  | 5V | 47 mm, 9 vias | 40 mm, 5 vias |
+  | 3V3 | 51 mm | 41 mm |
+  | 1V8 | 13 mm | 12 mm |
+
+- **Mic pair:** MIC_OUTP and MIC_OUTN are hand-routed as a pair at 0.45 mm pitch for 4.9 mm, from MK1 to C22 and C23. 2V8_MIC now enters MK1 from the right to make room. The short MIC_P/MIC_N run to J3 is left to the router.
+- **RSTB:** its diagonal starts as late as C8's pad allows. That gives +0.05 mm at the pins and the full diagonal 0.26 mm from SCL, and cuts the coupling by about 26%. The 0.3 mm asked for doesn't fit between C8 and the 0.4 mm pin pitch.
+- **Switch-node keep-out:** the router keeps every net that isn't part of the buck at least 4 mm from the switch node on F.Cu. 3V3 is now 3.9 mm away at its closest (it was 2.3 mm after the re-route without the keep-out), and the R12 branch runs on B.Cu.
+
+**Re-routed:** 5V, 3V3, 1V8, VIO, VIN_RAW, CAM_5V, 2V8_MIC, the mic nets, RSTB and VID_REF. Every other track, including the hand tidy, is unchanged.
+
+**Result:** DRC 0 errors, 0 unconnected, parity clean, and the same 6 silkscreen warnings. Each GND plane is still one piece. VID_REF (20 mm, 3 vias) doesn't run beside VIDEO_IN. That's fine: the sense wire is what rejects the ground noise, and over a solid plane the on-board route adds almost nothing.
+
+**Tools for this:**
+- `tools/route/update_board.py` brings the routed board in line with the schematic: new parts, net changes, PLACE moves and J3 labels.
+- `route.py --reroute NETS` keeps every existing track and routes only those nets.
+- `tools/route/reroute.ps1` runs both, then DRC:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File decoder-board\kicad\tools\route\reroute.ps1 -Nets "/5V,/3V3"
+```
+
+### Look and finish (2026-11-21)
+
+- **Colours:** black solder mask with white silkscreen. Pick the same at JLC when ordering. The board stackup is set to JLC04161H-7628 with those colours ([`tools/stackup.py`](kicad/tools/stackup.py)), so KiCad's 3D view shows the real look.
+- **Back silkscreen:** the luci3D logo (12 mm tall) and "luci3d HARDWARE", under "open-dvr decoder v0.2".
+  - The logo is one board-only footprint, LOGO1, so you can drag it around in KiCad. It also stays out of the schematic, the BOM and the placement file.
+  - It is made from [`art/luci3d-logo.png`](kicad/art/luci3d-logo.png): [`tools/logo/vectorize.py`](kicad/tools/logo/vectorize.py) traces the white strokes and thickens any stroke under 0.16 mm (JLC's silkscreen minimum is 0.15 mm). [`tools/logo/place_logo.py`](kicad/tools/logo/place_logo.py) then places it and saves a copy to `lib/open-dvr.pretty` for other boards.
+  - The logo crosses a few vias. They're tented, so the silkscreen prints over them, apart from possible small marks at the via holes.
+- **J3:** no 3D pin-header model. Wires are soldered straight into the holes.
 
 ## Layout
 
