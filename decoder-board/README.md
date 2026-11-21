@@ -320,6 +320,23 @@ powershell -ExecutionPolicy Bypass -File decoder-board\kicad\tools\route\route_b
 
 **Regulator noise check (2026-11-19, after the hand tidy):** U3 (TLV62569, 1.5 MHz buck with L1) is the only switching regulator; U2, U4 and U5 are LDOs. Measured edge to edge from the switch node copper (U3 pin 3, L1 pin 1): video (VIDEO_IN, VIN1P/N) 8 mm or more, MIPI 9 mm, crystal 12 mm, mic 11 mm, I2C 6.7 mm, RSTB 4.4 mm (a driven, slow line), and the buck's own FB node 2.8 mm (short, keep it that way). The one weak spot was the 3V3 run from C20 up the right edge to R12 (not fitted, FPC 3.3 V option): a 17 mm stub passing 3 mm from L1. It now runs on B.Cu, shielded from the switch node by the two GND planes. The 5V net is long (about 47 mm) because it fans out from Q1/F1 at the bottom left to J3, U2 and U3, but it carries well under 1 A (about 11 mV drop) and the buck's input loop (C25 to U3) is local.
 
+**Signal review (2026-11-21):**
+
+What the review checked:
+- **Crosstalk:** checked on both outer layers. Apart from the pairs themselves, the closest signal-to-signal run is RSTB beside SCL (4.1 mm, 0.15 mm gap).
+- **Ground planes:** both planes are one piece, with no islands.
+- **MIPI pairs:** matched within 0.05 mm, and about 105 Ω differential on the JLC04161H-7628 stackup.
+
+Fixes made:
+- **Thermal gap:** reduced from 0.5 to 0.3 mm. At 0.5 mm, J3's pin cut-outs merged into a 17 mm slot in both planes.
+- **GND vias:** four added beside MIPI lane 1's layer changes, so its return current can hop between In1 and In2 within about 1 mm.
+
+v0.2 ideas:
+- **U4 and U2:** rotate U4 by 180° and U2 by 90°, then re-route 5V, 3V3 and 1V8.
+- **Video reference:** give VIN1N's cap C13 its own sense wire to the camera ground (pseudo-differential input), with a 0 Ω option to the plane.
+- **Mic pair:** route the mic outputs as a pair.
+- **RSTB:** move it 0.3 mm further from SCL.
+
 ## Layout
 
 - **4 layers** (JLC 4-layer is cheap; the integrated board will be 4 layers anyway): signals / GND / power / signals.
