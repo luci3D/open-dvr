@@ -76,9 +76,12 @@ PLACE = {
 }
 
 J3_LABELS = ['VID', 'VG', '5Vin', 'GND', 'CAM', 'GND', 'VSYS', 'M+', 'M-', 'GND']
+J3_LABEL_DY, J3_LABEL_SIZE = 2.15, 0.7          # labels this far above the holes
+J3_LABEL_NUDGE = {'M+': -0.4, 'M-': 0.4}        # clear of R15's pads
 SILK = [  # text, x, y, size, angle, layer
-    ('VID 5V GND', 4.0, 18.2, 0.6, 0, 'F'), ('75R', 8.4, 27.4, 0.6, 0, 'F'),
-    ('open-dvr decoder', 14.0, 12.0, 1.0, 0, 'B'), ('v0.2  2026-11', 14.0, 13.6, 0.8, 0, 'B')]
+    ('VID 5V GND', 4.0, 18.2, 0.8, 0, 'F'), ('75R', 8.4, 27.4, 0.8, 0, 'F'),
+    ('open-dvr decoder', 14.0, 12.0, 1.0, 0, 'B'), ('v0.2  2026-11', 14.0, 13.6, 0.8, 0, 'B'),
+    ('JLCJLCJLCJLC', 14.0, 14.85, 0.8, 0, 'B')]   # JLC prints its order number here
 SHOW_REF = ()                             # silkscreen references kept for these (none: labels instead)
 NOT_IN_BOM = {'J3', 'JP1', 'H1', 'H2'}    # PCB-only, matches the schematic
 
@@ -238,8 +241,8 @@ def main():
         board.Add(z)
 
     x0, y0, _ = PLACE['J3']
-    nudge = {'M+': -0.2, 'M-': 0.2}       # clear of R15's pads
-    labels = SILK + [(lab, x0 + 2.54 * i + nudge.get(lab, 0), y0 - 2.3, 0.6, 0, 'F') for i, lab in enumerate(J3_LABELS)]
+    labels = SILK + [(lab, x0 + 2.54 * i + J3_LABEL_NUDGE.get(lab, 0), y0 - J3_LABEL_DY, J3_LABEL_SIZE, 0, 'F')
+                     for i, lab in enumerate(J3_LABELS)]
     for text, x, y, size, angle, side in labels:
         t = pcbnew.PCB_TEXT(board)
         t.SetText(text)
@@ -248,7 +251,7 @@ def main():
         t.SetLayer(pcbnew.F_SilkS if side == 'F' else pcbnew.B_SilkS)
         t.SetMirrored(side == 'B')
         t.SetTextSize(pcbnew.VECTOR2I(mm(size), mm(size)))
-        t.SetTextThickness(mm(0.12))
+        t.SetTextThickness(mm(0.15))       # JLC's minimum silkscreen line
         board.Add(t)
 
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())

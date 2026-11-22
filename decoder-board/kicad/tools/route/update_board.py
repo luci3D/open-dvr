@@ -109,12 +109,14 @@ def main(pcb, reroute):
     # silkscreen: J3 labels (sorted left to right) and the version text
     x0, y0, _ = G.PLACE['J3']
     texts = [d for d in b.GetDrawings() if isinstance(d, pcbnew.PCB_TEXT)]
-    row = sorted([t for t in texts if abs(pcbnew.ToMM(t.GetPosition().y) - G.OY - (y0 - 2.3)) < 0.05],
+    row = sorted([t for t in texts if t.GetLayer() == pcbnew.F_SilkS
+                  and abs(pcbnew.ToMM(t.GetPosition().y) - G.OY - (y0 - G.J3_LABEL_DY)) < 0.3],
                  key=lambda t: t.GetPosition().x)
-    nudge = {'M+': -0.2, 'M-': 0.2}
     for t, (i, lab) in zip(row, enumerate(G.J3_LABELS)):
         t.SetText(lab)
-        t.SetPosition(G.pt(x0 + 2.54 * i + nudge.get(lab, 0), y0 - 2.3))
+        t.SetPosition(G.pt(x0 + 2.54 * i + G.J3_LABEL_NUDGE.get(lab, 0), y0 - G.J3_LABEL_DY))
+        t.SetTextSize(pcbnew.VECTOR2I(G.mm(G.J3_LABEL_SIZE), G.mm(G.J3_LABEL_SIZE)))
+        t.SetTextThickness(G.mm(0.15))
     for t in texts:
         if t.GetText().startswith('v0.'):
             t.SetText(VERSION)

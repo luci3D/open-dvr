@@ -373,6 +373,11 @@ powershell -ExecutionPolicy Bypass -File decoder-board\kicad\tools\route\reroute
   - It is made from [`art/luci3d-logo.png`](kicad/art/luci3d-logo.png): [`tools/logo/vectorize.py`](kicad/tools/logo/vectorize.py) traces the white strokes and thickens any stroke under 0.16 mm (JLC's silkscreen minimum is 0.15 mm). [`tools/logo/place_logo.py`](kicad/tools/logo/place_logo.py) then places it and saves a copy to `lib/open-dvr.pretty` for other boards.
   - The logo crosses a few vias. They're tented, so the silkscreen prints over them, apart from possible small marks at the via holes.
 - **J3:** no 3D pin-header model. Wires are soldered straight into the holes.
+- **Silkscreen text:** 0.8 mm tall (J3 labels 0.7 mm to fit the 2.54 mm pitch) with 0.15 mm strokes, JLC's minimum line width. `JLCJLCJLCJLC` on the back marks where JLC prints its order number.
+
+### Ordering
+
+The JLCPCB files (Gerbers, BOM, placement) and the order settings are in [`jlc/`](jlc/README.md). Regenerate them with `tools/jlc_export.py` after any board change.
 
 ## Layout
 
