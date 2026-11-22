@@ -3,7 +3,7 @@
 Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). Design notes: [README.md](README.md).
 
 - **One supplier:** every part is from JLCPCB's assembly parts library (LCSC numbers), so JLC can build the whole board. The one exception is the decoder.
-- **The decoder is consigned:** JLC lists the TP9950 (C2852602) but has **0 in stock**. Buy it elsewhere and ship it to JLC as a consigned part; they place it like any other part. Buy spares.
+- **Soldered at home:** JLC has no stock of the TP9950 (C2852602) or the mic (MK1), so the first order leaves both out and they are soldered by hand. Buy spares. How: [jlc/README.md](jlc/README.md#parts-you-solder-at-home).
 - **Stock and prices** are from JLC's parts search on 2026-11-14, single-unit price. Check again before ordering: stock changes, and JLC prices go down at higher quantities.
 - **Basic vs extended:** JLC charges a one-time loading fee (about $3) for each different *extended* part type in an order; *basic* parts have none. Passives are all basic parts on purpose.
 
@@ -11,7 +11,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 
 | Ref | Qty | Part | LCSC | MPN | Type | Stock | Unit $ | Note |
 |---|---|---|---|---|---|---|---|---|
-| U1 | 1 | Video decoder, CVBS/AHD → MIPI CSI-2, QFN-40 5×5 | C2852602 | TP9950 | consigned | 0 | ~2.00 | Est. price. Ship to JLC |
+| U1 | 1 | Video decoder, CVBS/AHD → MIPI CSI-2, QFN-40 5×5 | C2852602 | TP9950 | hand | 0 | ~2.00 | Est. price. Soldered at home |
 | Y1 | 1 | Crystal 27 MHz, 20 pF, ±20 ppm, 3225 | C9008 | X322527MSB4SI | extended | 95 673 | 0.109 | Matches the datasheet's 20 pF load |
 | C1–C2 | 2 | 33 pF C0G 0402 (crystal load) | C1562 | 0402CG330J500NT | basic | 1.86 M | 0.002 | Tune after first boards |
 | U2 | 1 | LDO 3.3 V 500 mA, 50 µVrms, SOT-23-5 | C82942 | ME6211C33M5G-N | extended | 292 342 | 0.062 | AVDD33 and VIO |
@@ -29,7 +29,7 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 | JP1 | 1 | Solder jumper (termination) | — | — | PCB | — | — | |
 | J3 | 1 | Row of 10 × 2.54 mm through-holes | — | — | PCB | — | — | Not assembled: wires or a 10-pin header soldered by the user. See [Connectors](README.md#connectors) |
 | H1–H2 | 2 | M2 mounting holes | — | — | PCB | — | — | |
-| MK1 | 1 | MEMS mic, analog **differential**, 135 dB SPL, LLGA-5 4×3 | C3171831 | IM73A135V01XTSA1 | extended | 1 471 | 3.349 | Bottom port: hole in the PCB. Most expensive part after the decoder |
+| MK1 | 1 | MEMS mic, analog **differential**, 135 dB SPL, LLGA-5 4×3 | C3171831 | IM73A135V01XTSA1 | hand | 0 at JLC | 3.349 | Bottom port: hole in the PCB. Soldered at home (out of stock at JLC). Most expensive part after the decoder |
 | J1 | 1 | FPC 0.5 mm 20-pin, **top contact**, slide lock | C22435648 | 05B20U20P | extended | 695 | 0.071 | 20 pins confirmed from the Luckfox Pro/Max schematic. Pin order measured on the stock cable (see [README](README.md#host-connector-fpc)); check the insertion side on the drawing |
 | J2 | 1 | SH 1.0 mm 3-pin, right angle (Video / 5 V / GND) | C3029342 | WAFER-SH1.0-3PWB | extended | 31 515 | 0.093 | Same connector type as the COOAI board, so its cables fit. Solder pads in parallel |
 | C3–C14 | 12 | 100 nF X7R 0402 | C1525 | CL05B104KO5NNNC | basic | 38.1 M | 0.002 | 8 decoder pins, RSTB, 2 video coupling, mic |
@@ -46,13 +46,13 @@ Status: **preliminary, 2026-11-14.** Machine-readable copy: [bom.csv](bom.csv). 
 |---|---|
 | Parts per board, decoder included (about 56 placed parts) | ≈ 6.70 |
 | Of which the decoder (estimate) and the mic | ≈ 2.00 + 3.35 |
-| Extended part loading fees, once per order (14 types incl. the consigned decoder, about $3 each) | ≈ 42 |
+| Extended part loading fees, once per order (12 types with U1 and MK1 soldered at home, about $3 each) | ≈ 36 |
 
 The loading fees dominate a small order. Ways to cut them (the 1.8 V LDO has to stay: the Luckfox camera I/O is 1.8 V):
 - J2 and R3 are easy to hand-solder (−2 types).
 - A basic-part 3.3 V LDO exists (XC6206P332MR, C5446), but it is noisier (40 dB PSRR) and only 200 mA; not worth it for the analog supply.
 
-Not included: PCB (4 layers), assembly fee, the consignment shipping, and the FPC cable to the Luckfox (comes with the Luckfox camera; spares must be 0.5 mm, 20 conductors, **opposite-side** contacts).
+Not included: PCB (4 layers), assembly fee, shipping for the hand-soldered parts, and the FPC cable to the Luckfox (comes with the Luckfox camera; spares must be 0.5 mm, 20 conductors, **opposite-side** contacts).
 
 ## KiCad footprints
 

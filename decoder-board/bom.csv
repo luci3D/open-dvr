@@ -1,5 +1,5 @@
 Ref,Qty,Description,Package,LCSC,MPN,JLC type,Unit USD,Fitted,Note
-U1,1,Video decoder CVBS/AHD to MIPI CSI-2,QFN-40 5x5 EP3.7,C2852602,TP9950,consigned,2.00,yes,Est. price; 0 stock at JLC: buy elsewhere and ship to JLC
+U1,1,Video decoder CVBS/AHD to MIPI CSI-2,QFN-40 5x5 EP3.7,C2852602,TP9950,hand,2.00,yes,Est. price; 0 stock at JLC: buy elsewhere and solder at home
 Y1,1,Crystal 27 MHz 20 pF +-20 ppm 50 ohm,SMD3225-4P,C9008,X322527MSB4SI,extended,0.1093,yes,
 C1-C2,2,Crystal load cap 33 pF C0G,0402,C1562,0402CG330J500NT,basic,0.0024,yes,Tune after first boards
 U2,1,LDO 3.3 V 500 mA low noise (AVDD33 + VIO),SOT-23-5,C82942,ME6211C33M5G-N,extended,0.0624,yes,50 uVrms
@@ -17,7 +17,7 @@ F1,1,Polyfuse 500 mA hold 6 V (camera 5 V out),0805,C883108,BSMD0805-050-6V,exte
 JP1,1,Termination solder jumper,PCB,,,,0,yes,Open by default
 J3,1,Row of 10 x 2.54 mm through-holes,PCB,,,,0,no,Wires or a 10-pin header soldered by the user
 H1-H2,2,M2 mounting holes,PCB,,,,0,yes,
-MK1,1,MEMS mic analog differential 135 dB SPL,LLGA-5 4x3,C3171831,IM73A135V01XTSA1,extended,3.3492,yes,Bottom port: hole in PCB
+MK1,1,MEMS mic analog differential 135 dB SPL,LLGA-5 4x3,C3171831,IM73A135V01XTSA1,hand,3.3492,yes,Bottom port: hole in PCB; out of stock at JLC: solder at home
 J1,1,FPC 0.5 mm 20 P top contact slide lock,SMD P=0.5mm,C22435648,05B20U20P,extended,0.071,yes,20 pins confirmed (Luckfox Pro/Max H1); Luckfox pin 1 lands on the right seen from above with the cable entering from the top (see README); check the insertion side on the drawing
 J2,1,Camera/power connector SH 1.0 mm 3 P right angle,SMD P=1mm,C3029342,WAFER-SH1.0-3PWB,extended,0.0925,yes,Same type as the COOAI board; solder pads in parallel
 C3-C14,12,100 nF X7R,0402,C1525,CL05B104KO5NNNC,basic,0.0024,yes,8 decoder pins + RSTB + 2 video coupling + mic

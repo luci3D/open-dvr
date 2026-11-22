@@ -7,8 +7,10 @@ Writes decoder-board/jlc/open-dvr-decoder-<version>-{gerbers.zip,bom.csv,cpl.csv
 - Gerbers follow JLC's KiCad guide: Protel extensions, no X2, no netlist attributes,
   soldermask subtracted from silkscreen, zones refilled; Excellon drill in mm, PTH and NPTH
   in separate files.
-- BOM and CPL list only assembled parts: DNP parts and parts excluded from the BOM (J3, JP1,
-  H1, H2, LOGO1) are left out. Parts are grouped by LCSC number.
+- BOM and CPL list only the parts JLC places: DNP parts, parts excluded from the BOM (J3, JP1,
+  H1, H2, LOGO1) and HAND_PLACED parts are left out. Parts are grouped by LCSC number.
+- HAND_PLACED: U1 (TP9950) and MK1 (mic) are soldered at home, since JLC has no stock of either.
+  Empty the set to have JLC place them again.
 - ROT_OFFSET corrects any footprint whose zero rotation differs from JLC's. Every part on this
   board needs none: the lcsc footprints come from LCSC's own library, the 0402/0603/0805
   passives are symmetric, and J2's KiCad JST SH footprint was checked against LCSC's
@@ -34,6 +36,7 @@ OUT = os.path.join(os.path.dirname(KDIR), 'jlc')
 KCLI = os.path.join(os.path.dirname(sys.executable), 'kicad-cli.exe')
 LAYERS = 'F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts'
 ROT_OFFSET = {}            # footprint name -> degrees to add for JLC (none needed, see above)
+HAND_PLACED = {'U1', 'MK1'}  # soldered at home (see ../../jlc/README.md), not in the BOM or CPL
 
 
 def run(*args):
@@ -57,13 +60,14 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     for f in os.listdir(OUT):
         p = os.path.join(OUT, f)
-        if f.startswith('open-dvr-decoder-') and os.path.isfile(p):   # leave unzipped copies alone
+        # only the old order files: leave unzipped copies and spreadsheet copies alone
+        if f.startswith('open-dvr-decoder-') and f.endswith(('-gerbers.zip', '-bom.csv', '-cpl.csv')) and os.path.isfile(p):
             os.remove(p)
 
     # assembled parts, straight from the board
     parts = {}
     for fp in b.GetFootprints():
-        if fp.IsDNP() or fp.IsExcludedFromBOM():
+        if fp.IsDNP() or fp.IsExcludedFromBOM() or fp.GetReference() in HAND_PLACED:
             continue
         lcsc = next((x.GetText() for x in fp.GetFields() if x.GetName() == 'LCSC'), '')
         if not lcsc:
@@ -118,6 +122,8 @@ def main():
 
     print('%s: %d Gerber/drill files zipped, BOM %d lines (%d parts), CPL %d placements -> %s' % (
         base, len(files), len(groups), len(parts), len(cpl), OUT))
+    if HAND_PLACED:
+        print('Left for hand placement: ' + ', '.join(sorted(HAND_PLACED, key=key)))
     for f in files:
         print('  ' + f)
 
