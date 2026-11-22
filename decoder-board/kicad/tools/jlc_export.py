@@ -56,8 +56,9 @@ def main():
     base = 'open-dvr-decoder-%s' % ver
     os.makedirs(OUT, exist_ok=True)
     for f in os.listdir(OUT):
-        if f.startswith('open-dvr-decoder-'):
-            os.remove(os.path.join(OUT, f))
+        p = os.path.join(OUT, f)
+        if f.startswith('open-dvr-decoder-') and os.path.isfile(p):   # leave unzipped copies alone
+            os.remove(p)
 
     # assembled parts, straight from the board
     parts = {}

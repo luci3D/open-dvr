@@ -29,3 +29,6 @@ decoder-board/kicad/*.lck
 # Python caches
 __pycache__/
 decoder-board/kicad/.history/
+
+# Unzipped copies of the JLC Gerber zip (the zip is the order file)
+decoder-board/jlc/*/
