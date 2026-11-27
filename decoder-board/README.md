@@ -4,6 +4,12 @@ A small board that turns an analog FPV camera signal (CVBS) into MIPI CSI-2 for 
 
 Status: **schematic v0.1, PCB placed and routed v0.1, 2026-11-19** ([`kicad/`](kicad/), see [Schematic](#schematic) and [PCB](#pcb)). Next: a review in KiCad, then a JLC order.
 
+| Top | Bottom |
+|---|---|
+| ![Decoder board v0.2, top, isometric](renders/v0.2-iso-top.png) | ![Decoder board v0.2, bottom, isometric](renders/v0.2-iso-bottom.png) |
+
+KiCad 3D renders of v0.2 with all parts fitted (U1 and MK1 included, though they are soldered at home).
+
 ```
 FC video line ──(parallel tap)──► J2/J3 ──► input network ──► TP9950 ──MIPI 2 lanes + I2C──► J1 FPC ──► Luckfox camera connector
 FC 5 V ──► J2/J3 ──► reverse-polarity FET ──► 5 V ──► 3.3 V LDO, 1.2 V buck, camera 5 V out (J3), 5 V to Luckfox VSYS (J3)
